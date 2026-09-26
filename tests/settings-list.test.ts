@@ -348,27 +348,43 @@ for (const { width, rows } of LAYOUT_CASES) {
 		}
 	});
 
-	test(`settings never stacks blank lines at ${width}x${rows}`, () => {
-		const lines = createList({ rows }).render(width);
-		for (let index = 1; index < lines.length; index++) {
-			const stacked =
-				isBlank(lines[index - 1] ?? "x") && isBlank(lines[index] ?? "x");
-			assert.equal(stacked, false, `blank run at line ${index}`);
+	test(`settings never shows more than two blank lines in a row at ${width}x${rows}`, () => {
+		const list = createList({ rows });
+		for (const step of SETTING_ROW_LABELS.keys()) {
+			const lines = list.render(width);
+			let run = 0;
+			for (const line of lines) {
+				run = isBlank(line) ? run + 1 : 0;
+				assert(run <= 2, `step ${step}: blank run of ${run}`);
+			}
+			list.handleInput("\x1b[B");
 		}
 	});
 }
 
 for (const width of [100, 50]) {
-	test(`tall settings keeps one blank line above the footer at width ${width}`, () => {
-		const lines = createList({ rows: 40 }).render(width);
-		const footer = lines.findIndex((line) => line.includes(FOOTER_TEXT));
-		assert(isBlank(lines[footer - 1] ?? ""));
-		assert.equal(isBlank(lines[footer - 2] ?? ""), false);
-		const description = lines.slice(footer - 3, footer - 1).join(" ");
-		assert(description.includes("option notes were added."));
-		assert.equal(cueCount(lines, "above"), 0);
-		assert.equal(cueCount(lines, "below"), 0);
-		assert.equal(visibleSettingCount(lines), SETTING_ROW_LABELS.length);
+	test(`tall settings keeps a fixed height as focus moves at width ${width}`, () => {
+		const list = createList({ rows: 40 });
+		const heights = new Set<number>();
+		let longestGap = Number.POSITIVE_INFINITY;
+		for (const _label of SETTING_ROW_LABELS) {
+			const lines = list.render(width);
+			heights.add(lines.length);
+			const footer = lines.findIndex((line) => line.includes(FOOTER_TEXT));
+			assert(isBlank(lines[footer - 1] ?? ""));
+			let gap = 0;
+			while (isBlank(lines[footer - 1 - gap] ?? "")) {
+				gap++;
+			}
+			longestGap = Math.min(longestGap, gap);
+			assert.equal(cueCount(lines, "above"), 0);
+			assert.equal(cueCount(lines, "below"), 0);
+			assert.equal(visibleSettingCount(lines), SETTING_ROW_LABELS.length);
+			list.handleInput("\x1b[B");
+		}
+		assert.equal(heights.size, 1, `heights ${[...heights].join(", ")}`);
+		// The longest description fills the reserved space, leaving one blank line.
+		assert.equal(longestGap, 1);
 	});
 
 	test(`short settings cues the settings hidden below at width ${width}`, () => {

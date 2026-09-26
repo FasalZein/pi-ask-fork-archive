@@ -337,13 +337,25 @@ export class AskSettingsList {
 			return;
 		}
 		lines.push(this.line("", innerWidth));
+		const wrapWidth = innerWidth - 2;
 		const descriptionLines = wrapTextWithAnsi(
 			this.theme.fg("muted", selectedSetting.description),
-			innerWidth - 2
+			wrapWidth
 		).slice(0, DESCRIPTION_LINE_COUNT);
-		// No blank padding after short descriptions: one blank line separates the footer.
+		// Reserve the longest description at this width so the overlay height stays fixed as focus moves.
+		const reservedLines = Math.min(
+			DESCRIPTION_LINE_COUNT,
+			Math.max(
+				...SETTINGS.map(
+					(setting) => wrapTextWithAnsi(setting.description, wrapWidth).length
+				)
+			)
+		);
 		for (const line of descriptionLines) {
 			lines.push(this.line(` ${line}`, innerWidth));
+		}
+		for (let index = descriptionLines.length; index < reservedLines; index++) {
+			lines.push(this.line("", innerWidth));
 		}
 	}
 
