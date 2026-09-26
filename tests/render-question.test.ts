@@ -6,6 +6,7 @@ import {
 	applyNumberShortcut,
 	enterOptionNoteMode,
 	enterQuestionNoteMode,
+	saveNote,
 } from "../src/state/transitions.ts";
 import { renderQuestionScreen } from "../src/ui/render-question.ts";
 
@@ -362,3 +363,73 @@ test("preview custom option reuses the normal inline editor", () => {
 	assert.equal(inputIndex, optionIndex + 1);
 	assert(!lines.some((line) => line.includes("Preview A")));
 });
+
+function plainQuestionLines(
+	state: ReturnType<typeof createInitialState>,
+	width: number
+): string[] {
+	const lines: string[] = [];
+	renderQuestionScreen({
+		editor: mockEditor(),
+		lines,
+		options: getRenderableOptions(state.questions[0]),
+		question: state.questions[0],
+		state,
+		theme: mockTheme(() => undefined),
+		width,
+	});
+	return lines;
+}
+
+for (const width of [100, 50]) {
+	test(`multi-select count keeps a blank line before the options at width ${width}`, () => {
+		const state = createInitialState({
+			questions: [
+				{
+					id: "q1",
+					prompt: "Pick features",
+					type: "multi",
+					options: [
+						{ value: "a", label: "Tags" },
+						{ value: "b", label: "Search" },
+					],
+				},
+			],
+		});
+		const lines = plainQuestionLines(state, width);
+		assert.deepEqual(lines.slice(0, 4), [
+			" Pick features",
+			" Pick any · 0 of 2 selected",
+			"",
+			" ▶ 1. [ ] Tags",
+		]);
+	});
+
+	test(`saved option note starts in the description column at width ${width}`, () => {
+		let state = createInitialState({
+			questions: [
+				{
+					id: "q1",
+					prompt: "Pick one",
+					options: [
+						{
+							value: "pg",
+							label: "Postgres",
+							description: "Stack",
+							recommended: true,
+						},
+						{ value: "sqlite", label: "SQLite" },
+					],
+				},
+			],
+		});
+		state = enterOptionNoteMode(state, "q1", "pg");
+		state = saveNote(state, "Self-host only");
+		const lines = plainQuestionLines(state, width);
+		const label = lines.indexOf(" ▶ 1. Postgres");
+		assert.deepEqual(lines.slice(label + 1, label + 3), [
+			"      (recommended) | Stack",
+			"      Note: Self-host only",
+		]);
+	});
+}

@@ -44,9 +44,9 @@ test("submit screen renders the compact action labels without extra prompt copy"
 		UI_DIMENSIONS.submitWideMinWidth + 16
 	);
 
-	assert.equal(lines[0], "❯ 1. Submit      Review answers");
-	assert.equal(lines[1], "  2. Elaborate  ");
-	assert.equal(lines[2], "  3. Cancel      Single");
+	assert.equal(lines[0], " ▶ 1. Submit      Review answers");
+	assert.equal(lines[1], "   2. Elaborate  ");
+	assert.equal(lines[2], "   3. Cancel      Single");
 	assert(!lines.join("\n").includes("Submit answers?"));
 	assert(!lines.join("\n").includes("Submit answers"));
 });
@@ -72,10 +72,10 @@ test("submit screen keeps review and actions grouped side by side on wide screen
 	);
 
 	assert.deepEqual(lines, [
-		"❯ 1. Submit      Review answers",
-		"  2. Elaborate  ",
-		"  3. Cancel      Color",
-		"                   → unanswered",
+		" ▶ 1. Submit      Review answers",
+		"   2. Elaborate  ",
+		"   3. Cancel      Color",
+		"                    → unanswered",
 	]);
 });
 
@@ -105,9 +105,9 @@ test("submit screen stacks review above actions on narrow screens", () => {
 		" Color",
 		"   → unanswered",
 		"",
-		"❯ 1. Submit",
-		"  2. Elaborate",
-		"  3. Cancel",
+		" ▶ 1. Submit",
+		"   2. Elaborate",
+		"   3. Cancel",
 	]);
 });
 
@@ -323,10 +323,10 @@ test("submit action column keeps all three actions on consecutive rows at the wi
 		UI_DIMENSIONS.submitWideMinWidth
 	);
 
-	assert.equal(lines[0], "❯ 1. Submit      Review answers");
-	assert.equal(lines[1], "  2. Elaborate  ");
-	assert.equal(lines[2], "  3. Cancel      Color");
-	assert.equal(lines[3], "                   → unanswered");
+	assert.equal(lines[0], " ▶ 1. Submit      Review answers");
+	assert.equal(lines[1], "   2. Elaborate  ");
+	assert.equal(lines[2], "   3. Cancel      Color");
+	assert.equal(lines[3], "                    → unanswered");
 });
 
 test("note-only questions stay unanswered while Elaborate shows their notes", () => {
@@ -346,11 +346,11 @@ test("note-only questions stay unanswered while Elaborate shows their notes", ()
 	const lines: string[] = [];
 	renderSubmitScreen(lines, state, plainTheme(), 80);
 	assert.deepEqual(lines, [
-		"  1. Submit      Review answers",
-		"❯ 2. Elaborate  ",
-		"  3. Cancel      Name",
-		"                     Note: Need examples",
-		"                   → unanswered",
+		"   1. Submit      Review answers",
+		" ▶ 2. Elaborate  ",
+		"   3. Cancel      Name",
+		"                      Note: Need examples",
+		"                    → unanswered",
 	]);
 });
 
@@ -400,9 +400,9 @@ test("review colors answers, notes, and unanswered questions as upstream", () =>
 		" <text>Live pi</>",
 		"   <dim>→ unanswered</>",
 		"",
-		"❯ <accent>1. Submit</>",
-		"  <text>2. Elaborate</>",
-		"  <text>3. Cancel</>",
+		" ▶ <accent>1. Submit</>",
+		"   <text>2. Elaborate</>",
+		"   <text>3. Cancel</>",
 	]);
 });
 
@@ -432,16 +432,16 @@ test("short terminals scroll review answers under a fixed title and keep actions
 		10
 	);
 	assert.deepEqual(lines, [
-		"❯ 1. Submit      Review answers",
-		"  2. Elaborate  ",
-		"  3. Cancel      Question 1",
-		"                   → unanswered",
-		"                ",
-		"                 Question 2",
-		"                   → unanswered",
-		"                ",
-		"                 Question 3",
-		"                 ↓ 9 more below · Shift+↓",
+		" ▶ 1. Submit      Review answers",
+		"   2. Elaborate  ",
+		"   3. Cancel      Question 1",
+		"                    → unanswered",
+		"                 ",
+		"                  Question 2",
+		"                    → unanswered",
+		"                 ",
+		"                  Question 3",
+		"                  ↓ 9 more below · Shift+↓",
 	]);
 	assert.equal(reviewWindow.reviewPageRows, 7);
 
@@ -457,8 +457,8 @@ test("short terminals scroll review answers under a fixed title and keep actions
 		reviewWindow,
 		10
 	);
-	assert.equal(scrolled[0], "❯ 1. Submit      Review answers");
-	assert.equal(scrolled[1], "  2. Elaborate   ↑ 10 more above · Shift+↑");
-	assert.equal(scrolled.at(-3), "                 Question 12");
+	assert.equal(scrolled[0], " ▶ 1. Submit      Review answers");
+	assert.equal(scrolled[1], "   2. Elaborate   ↑ 10 more above · Shift+↑");
+	assert.equal(scrolled.at(-3), "                  Question 12");
 	assert.equal(scrolled.length, 10);
 });

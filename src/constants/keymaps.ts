@@ -308,10 +308,19 @@ export function getAskKeymaps(config: AskConfig): {
 	};
 }
 
-export function renderFooterKeymaps(
+/** A footer hint; hints with a `dropRank` are hidden, lowest rank first, when the footer does not fit one line. */
+export interface FooterHint {
+	dropRank?: number;
+	text: string;
+}
+
+// Least useful first: arrow movement, then number keys, then type change, then tab/back movement.
+const FOOTER_DROP_RANK = { move: 1, pick: 2, type: 3, tab: 4 } as const;
+
+export function getFooterHints(
 	config: AskConfig,
 	context: FooterKeymapContext
-): string {
+): readonly FooterHint[] {
 	const global = getGlobalBindings(config);
 	const main = getAskContextBindings(config, "main");
 	const editor = getAskContextBindings(config, "editor");
@@ -323,51 +332,75 @@ export function renderFooterKeymaps(
 		"question",
 		formatKeybindingLabel(config.keymaps.main.nextTab[0] ?? "tab")
 	);
-	const hintsByContext: Record<FooterKeymapContext, readonly string[]> = {
+	const move = { text: `${moveLabel} move`, dropRank: FOOTER_DROP_RANK.move };
+	const tab = { text: questionHint, dropRank: FOOTER_DROP_RANK.tab };
+	const type = {
+		text: footerHint(main.changeQuestionType, "type"),
+		dropRank: FOOTER_DROP_RANK.type,
+	};
+	const settings = { text: footerHint(global.settings, "settings") };
+	const hintsByContext: Record<FooterKeymapContext, readonly FooterHint[]> = {
 		input: [
-			footerHint(editor.submit, "submit"),
-			footerHint(editor.close, "close"),
-			footerHint(global.settings, "settings"),
+			{ text: footerHint(editor.submit, "submit") },
+			{ text: footerHint(editor.close, "close") },
+			settings,
 		],
 		note: [
-			footerHint(noteEditor.save, "save"),
-			footerHint(noteEditor.close, "close"),
-			footerHint(global.settings, "settings"),
+			{ text: footerHint(noteEditor.save, "save") },
+			{ text: footerHint(noteEditor.close, "close") },
+			settings,
 		],
 		submit: [
-			`${moveLabel} move`,
-			footerHint(main.confirm, "confirm"),
-			"1-3 pick",
-			footerHint(
-				main.previousTab,
-				"back",
-				formatKeybindingLabel(config.keymaps.main.previousTab[0] ?? "shift+tab")
-			),
-			footerHint(main.cancel, "cancel"),
-			footerHint(global.settings, "settings"),
+			move,
+			{ text: footerHint(main.confirm, "confirm") },
+			{ text: "1-3 pick", dropRank: FOOTER_DROP_RANK.pick },
+			{
+				text: footerHint(
+					main.previousTab,
+					"back",
+					formatKeybindingLabel(
+						config.keymaps.main.previousTab[0] ?? "shift+tab"
+					)
+				),
+				dropRank: FOOTER_DROP_RANK.tab,
+			},
+			{ text: footerHint(main.cancel, "cancel") },
+			settings,
 		],
 		multi: [
-			`${moveLabel} move`,
-			`${main.toggle.label}/1-9 toggle`,
-			questionHint,
-			footerHint(main.confirm, "continue"),
-			footerHint(main.optionNote, "note", noteNavigationLabel),
-			footerHint(main.changeQuestionType, "type"),
-			footerHint(main.cancel, "dismiss"),
-			footerHint(global.settings, "settings"),
+			move,
+			{
+				text: `${main.toggle.label}/1-9 toggle`,
+				dropRank: FOOTER_DROP_RANK.pick,
+			},
+			tab,
+			{ text: footerHint(main.confirm, "continue") },
+			{ text: footerHint(main.optionNote, "note", noteNavigationLabel) },
+			type,
+			{ text: footerHint(main.cancel, "dismiss") },
+			settings,
 		],
 		default: [
-			`${moveLabel} move`,
-			"1-9 pick",
-			questionHint,
-			footerHint(main.confirm, "confirm"),
-			footerHint(main.optionNote, "note", noteNavigationLabel),
-			footerHint(main.changeQuestionType, "type"),
-			footerHint(main.cancel, "dismiss"),
-			footerHint(global.settings, "settings"),
+			move,
+			{ text: "1-9 pick", dropRank: FOOTER_DROP_RANK.pick },
+			tab,
+			{ text: footerHint(main.confirm, "confirm") },
+			{ text: footerHint(main.optionNote, "note", noteNavigationLabel) },
+			type,
+			{ text: footerHint(main.cancel, "dismiss") },
+			settings,
 		],
 	};
-	return ` ${hintsByContext[context].join(" · ")}`;
+	return hintsByContext[context];
+}
+
+export function renderFooterKeymaps(
+	config: AskConfig,
+	context: FooterKeymapContext
+): string {
+	return ` ${getFooterHints(config, context)
+		.map((hint) => hint.text)
+		.join(" · ")}`;
 }
 
 export function renderSettingsFooterKeymaps(config: AskConfig): string {

@@ -65,13 +65,9 @@ for (const width of [60, 100, 140]) {
 			description
 		);
 		const footers: Record<number, string[]> = {
-			60: [
-				" ↑↓ move · 1-9 pick · Tab question · Enter confirm",
-				" N/Shift+N note · T type · Esc dismiss · ? settings",
-			],
+			60: [" Enter confirm · N/Shift+N note · Esc dismiss · ? settings"],
 			100: [
-				" ↑↓ move · 1-9 pick · Tab question · Enter confirm · N/Shift+N note · T type · Esc dismiss",
-				" ? settings",
+				" 1-9 pick · Tab question · Enter confirm · N/Shift+N note · T type · Esc dismiss · ? settings",
 			],
 			140: [
 				" ↑↓ move · 1-9 pick · Tab question · Enter confirm · N/Shift+N note · T type · Esc dismiss · ? settings",
@@ -157,8 +153,11 @@ test("multi question shows checked count and selected option in a short viewport
 		lines.some((line) => line.includes("[✓] Feature")) ||
 			lines.some((line) => line.includes("more options above"))
 	);
+	// The multi footer is 102 columns without the arrow hint, so 100 columns also drops the toggle hint.
 	assert(
-		lines.some((line) => line.includes("Space/1-9 toggle · Tab question"))
+		lines.includes(
+			" Tab question · Enter continue · N/Shift+N note · T type · Esc dismiss · ? settings"
+		)
 	);
 	assert(lines.at(-2)?.includes("settings"));
 });

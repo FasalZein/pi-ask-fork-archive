@@ -114,7 +114,7 @@ function getOptionPointer(option: AskDisplayOption, selected: boolean): string {
 	if (option.isFreeformOnlyOption) {
 		return "";
 	}
-	return selected ? " ▶ " : "   ";
+	return selected ? UI_TEXT.cursor : UI_TEXT.cursorBlank;
 }
 
 function buildOptionDetailModel(
