@@ -289,3 +289,128 @@ test("short settings shows a save failure while reverting the focused toggle", a
 	assert(text.includes("disk nope"));
 	assert(text.includes("Esc / Ctrl+C / ? to close"));
 });
+
+const SETTING_ROW_LABELS = [
+	"Auto-submit when answered",
+	"Confirm dismiss when dirty",
+	"Double-press review shortcuts",
+	"Notifications",
+	"Show footer hints",
+	"Present single-select as multi-select",
+	"[reset all]",
+];
+const FOOTER_TEXT = "Enter / Space to change";
+const ABOVE_CUE = /↑ (\d+) more above/;
+const BELOW_CUE = /↓ (\d+) more below/;
+const LAYOUT_CASES = [
+	{ width: 100, rows: 40 },
+	{ width: 50, rows: 40 },
+	{ width: 100, rows: 16 },
+	{ width: 50, rows: 16 },
+];
+
+function innerText(line: string): string {
+	return line.slice(1, -1);
+}
+
+function isBlank(line: string): boolean {
+	return innerText(line).trim() === "";
+}
+
+function cueCount(lines: string[], direction: "above" | "below"): number {
+	const pattern = direction === "above" ? ABOVE_CUE : BELOW_CUE;
+	for (const line of lines) {
+		const match = pattern.exec(line);
+		if (match) {
+			return Number(match[1]);
+		}
+	}
+	return 0;
+}
+
+function visibleSettingCount(lines: string[]): number {
+	const text = lines.join("\n");
+	return SETTING_ROW_LABELS.filter((label) => text.includes(label)).length;
+}
+
+for (const { width, rows } of LAYOUT_CASES) {
+	test(`settings pads the cursor one column from the border at ${width}x${rows}`, () => {
+		const list = createList({ rows });
+		const first = list.render(width);
+		assert(first.some((line) => line.startsWith("│ ❯ Auto-submit")));
+		list.handleInput("\x1b[B");
+		const second = list.render(width);
+		assert(second.some((line) => line.startsWith("│   Auto-submit")));
+		assert(second.some((line) => line.startsWith("│ ❯ Confirm dismiss")));
+		for (const line of [...first, ...second]) {
+			assert.equal(line.startsWith("│❯"), false);
+			assert(visibleWidth(line) <= width);
+		}
+	});
+
+	test(`settings never stacks blank lines at ${width}x${rows}`, () => {
+		const lines = createList({ rows }).render(width);
+		for (let index = 1; index < lines.length; index++) {
+			const stacked =
+				isBlank(lines[index - 1] ?? "x") && isBlank(lines[index] ?? "x");
+			assert.equal(stacked, false, `blank run at line ${index}`);
+		}
+	});
+}
+
+for (const width of [100, 50]) {
+	test(`tall settings keeps one blank line above the footer at width ${width}`, () => {
+		const lines = createList({ rows: 40 }).render(width);
+		const footer = lines.findIndex((line) => line.includes(FOOTER_TEXT));
+		assert(isBlank(lines[footer - 1] ?? ""));
+		assert.equal(isBlank(lines[footer - 2] ?? ""), false);
+		const description = lines.slice(footer - 3, footer - 1).join(" ");
+		assert(description.includes("option notes were added."));
+		assert.equal(cueCount(lines, "above"), 0);
+		assert.equal(cueCount(lines, "below"), 0);
+		assert.equal(visibleSettingCount(lines), SETTING_ROW_LABELS.length);
+	});
+
+	test(`short settings cues the settings hidden below at width ${width}`, () => {
+		const lines = createList({ rows: 16 }).render(width);
+		const hidden = SETTING_ROW_LABELS.length - visibleSettingCount(lines);
+		assert(lines.length <= 14);
+		assert(hidden > 0);
+		assert.equal(cueCount(lines, "below"), hidden);
+		assert.equal(cueCount(lines, "above"), 0);
+		assert(lines.join("\n").includes("@fasalzein/pi-ask"));
+	});
+}
+
+for (const width of [80, 50]) {
+	test(`short settings keeps the focused row visible while focus moves at width ${width}`, () => {
+		const list = createList({ rows: 16 });
+		let sawAboveCue = false;
+		for (const [step, label] of SETTING_ROW_LABELS.entries()) {
+			const lines = list.render(width);
+			const text = lines.join("\n");
+			assert(lines.length <= 14, `step ${step} height`);
+			assert(text.includes(FOOTER_TEXT.slice(0, 12)), `step ${step} footer`);
+			if (label === "[reset all]") {
+				assert(text.includes(label), `step ${step} reset visible`);
+				assert.equal(text.includes("❯"), false);
+			} else {
+				assert(
+					lines.some((line) => line.startsWith(`│ ❯ ${label}`)),
+					`step ${step} focus on ${label}`
+				);
+			}
+			const above = cueCount(lines, "above");
+			const below = cueCount(lines, "below");
+			sawAboveCue ||= above > 0;
+			assert.equal(
+				above + visibleSettingCount(lines) + below,
+				SETTING_ROW_LABELS.length,
+				`step ${step} cue counts`
+			);
+			list.handleInput("\x1b[B");
+		}
+		// At width 50 the first label wraps, so the list outgrows the window.
+		assert.equal(sawAboveCue, width === 50);
+	});
+}

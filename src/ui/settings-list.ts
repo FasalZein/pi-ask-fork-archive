@@ -32,7 +32,11 @@ interface AskSettingsListOptions {
 }
 
 const DESCRIPTION_LINE_COUNT = 3;
+// Rows start with one column of padding, then the cursor slot.
+const CURSOR_PREFIX = " ❯ ";
+const ROW_INDENT = "   ";
 const COMPACT_WIDTH = 40;
+const MIN_ROWS_WITH_CUES = 3;
 const RESET_CONFIRMATION_MS = 2000;
 const OVERLAY_HEIGHT_FRACTION = 0.9;
 
@@ -117,6 +121,12 @@ const SETTINGS = [
 
 type SettingKey = ToggleSettingKey;
 
+/** Absolute line indexes of one rendered setting row. */
+interface SettingLines {
+	first: number;
+	last: number;
+}
+
 export class AskSettingsList {
 	private closed = false;
 	private config: AskConfig;
@@ -189,7 +199,7 @@ export class AskSettingsList {
 		);
 
 		lines.push(this.line("", innerWidth));
-		const focusedLine = this.appendSettings(lines, innerWidth);
+		const settingLines = this.appendSettings(lines, innerWidth);
 
 		this.appendSelectedDescription(lines, innerWidth);
 		const noticeStart = lines.length;
@@ -204,22 +214,20 @@ export class AskSettingsList {
 			lines,
 			noticeStart,
 			footerStart,
-			focusedLine,
+			settingLines,
 			innerWidth
 		).map((line) => truncateToWidth(line, width));
 	}
 
-	private appendSettings(lines: string[], innerWidth: number): number {
+	private appendSettings(lines: string[], innerWidth: number): SettingLines[] {
 		let previousSection: SettingSection | undefined;
-		let focusedLine = 0;
+		const settingLines: SettingLines[] = [];
 		for (const [index, setting] of SETTINGS.entries()) {
 			if (setting.section !== previousSection) {
 				this.appendSection(lines, setting.section, previousSection, innerWidth);
 				previousSection = setting.section;
 			}
-			if (index === this.focusIndex) {
-				focusedLine = lines.length;
-			}
+			const first = lines.length;
 			for (const settingLine of this.renderSetting(
 				setting,
 				index,
@@ -227,12 +235,13 @@ export class AskSettingsList {
 			)) {
 				lines.push(this.line(settingLine, innerWidth));
 			}
+			settingLines.push({ first, last: lines.length - 1 });
 			if (innerWidth < COMPACT_WIDTH && index < SETTINGS.length - 1) {
 				lines.push(this.line("", innerWidth));
 			}
 		}
 
-		return focusedLine;
+		return settingLines;
 	}
 
 	private appendSection(
@@ -251,7 +260,7 @@ export class AskSettingsList {
 		lines: string[],
 		noticeStart: number,
 		footerStart: number,
-		focusedLine: number,
+		settingLines: SettingLines[],
 		innerWidth: number
 	): string[] {
 		// Pi clips overlays from the top. Window here so focus and close keys survive.
@@ -271,19 +280,29 @@ export class AskSettingsList {
 			...lines.slice(footerStart, -1),
 		];
 		const bodyHeight = Math.max(1, maxRows - footer.length - 2);
-		const focusInBody = focusedLine - 1;
-		this.windowStart = Math.max(
-			0,
-			Math.min(this.windowStart, Math.max(0, body.length - bodyHeight))
+		// Body indexes are one less than line indexes (the top border is excluded).
+		const settings = settingLines.map(({ first, last }) => ({
+			first: first - 1,
+			last: last - 1,
+		}));
+		const focused = settings[this.focusIndex] ?? { first: 0, last: 0 };
+		const window = new SettingsWindow(settings, body.length, bodyHeight);
+		this.windowStart = window.fit(this.windowStart, focused);
+
+		const { above, below, contentEnd, contentStart } = window.at(
+			this.windowStart
 		);
-		if (focusInBody < this.windowStart) {
-			this.windowStart = focusInBody;
-		} else if (focusInBody >= this.windowStart + bodyHeight) {
-			this.windowStart = focusInBody - bodyHeight + 1;
-		}
+		const cue = (text: string) =>
+			this.line(this.theme.fg("dim", `${ROW_INDENT}${text}`), innerWidth);
 		return [
 			lines[0] ?? "",
-			...body.slice(this.windowStart, this.windowStart + bodyHeight),
+			...(contentStart > this.windowStart
+				? [cue(`↑ ${above} more above`)]
+				: []),
+			...body.slice(contentStart, contentEnd),
+			...(contentEnd < this.windowStart + bodyHeight
+				? [cue(`↓ ${below} more below`)]
+				: []),
 			...footer,
 			this.bottomBorder(innerWidth),
 		];
@@ -322,15 +341,9 @@ export class AskSettingsList {
 			this.theme.fg("muted", selectedSetting.description),
 			innerWidth - 2
 		).slice(0, DESCRIPTION_LINE_COUNT);
+		// No blank padding after short descriptions: one blank line separates the footer.
 		for (const line of descriptionLines) {
 			lines.push(this.line(` ${line}`, innerWidth));
-		}
-		for (
-			let index = descriptionLines.length;
-			index < DESCRIPTION_LINE_COUNT;
-			index++
-		) {
-			lines.push(this.line("", innerWidth));
 		}
 	}
 
@@ -372,8 +385,10 @@ export class AskSettingsList {
 		innerWidth: number
 	): string[] {
 		const selected = index === this.focusIndex;
-		const prefix = selected ? this.theme.fg("accent", "❯ ") : "  ";
-		const continuationPrefix = "  ";
+		const prefix = selected
+			? this.theme.fg("accent", CURSOR_PREFIX)
+			: ROW_INDENT;
+		const continuationPrefix = ROW_INDENT;
 		if (setting.type === "action") {
 			return [center(this.renderSettingValue(setting, selected), innerWidth)];
 		}
@@ -510,6 +525,77 @@ export class AskSettingsList {
 		}
 		this.closed = true;
 		this.onClose();
+	}
+}
+
+interface WindowView {
+	/** Settings whose first line is hidden above the content rows. */
+	above: number;
+	/** Settings whose last line is hidden below the content rows. */
+	below: number;
+	contentEnd: number;
+	contentStart: number;
+}
+
+/**
+ * Scrolls the settings body on short terminals. A cue row replaces the first or
+ * last window row when settings are hidden in that direction.
+ */
+class SettingsWindow {
+	private readonly bodyHeight: number;
+	private readonly bodyLength: number;
+	private readonly settings: SettingLines[];
+
+	constructor(
+		settings: SettingLines[],
+		bodyLength: number,
+		bodyHeight: number
+	) {
+		this.settings = settings;
+		this.bodyLength = bodyLength;
+		this.bodyHeight = bodyHeight;
+	}
+
+	at(start: number): WindowView {
+		const end = start + this.bodyHeight;
+		// Cue rows need room for at least one content row between them.
+		const cuesFit = this.bodyHeight >= MIN_ROWS_WITH_CUES;
+		const hasAbove =
+			cuesFit && this.settings.some(({ first }) => first < start);
+		const hasBelow = cuesFit && this.settings.some(({ last }) => last >= end);
+		const contentStart = hasAbove ? start + 1 : start;
+		const contentEnd = hasBelow ? end - 1 : end;
+		return {
+			above: this.settings.filter(({ first }) => first < contentStart).length,
+			below: this.settings.filter(({ last }) => last >= contentEnd).length,
+			contentEnd,
+			contentStart,
+		};
+	}
+
+	/** Returns the window start nearest to `start` that shows the focused setting. */
+	fit(start: number, focused: SettingLines): number {
+		// Keep the header visible while no setting is hidden above.
+		if (this.shows(0, focused)) {
+			return 0;
+		}
+		// The body is short, so test every start and keep the nearest one.
+		const maxStart = Math.max(0, this.bodyLength - this.bodyHeight);
+		let best = Math.max(0, Math.min(start, maxStart));
+		let bestDistance = Number.POSITIVE_INFINITY;
+		for (let candidate = 0; candidate <= maxStart; candidate++) {
+			const distance = Math.abs(candidate - start);
+			if (distance < bestDistance && this.shows(candidate, focused)) {
+				best = candidate;
+				bestDistance = distance;
+			}
+		}
+		return best;
+	}
+
+	private shows(start: number, focused: SettingLines): boolean {
+		const view = this.at(start);
+		return focused.first >= view.contentStart && focused.last < view.contentEnd;
 	}
 }
 
