@@ -5,299 +5,109 @@
 [![last commit](https://badgen.net/github/last-commit/FasalZein/pi-ask)](https://github.com/FasalZein/pi-ask/commits/main)
 [![stars](https://badgen.net/github/stars/FasalZein/pi-ask)](https://github.com/FasalZein/pi-ask/stargazers)
 
-> [!IMPORTANT]
-> Contributions are welcome in chill mode: please open an issue and link your fork or branch instead of expecting rapid pull-request reviews.
-
-`@fasalzein/pi-ask` is an ask tool that cares about your answers.
-
-It lets an agent pause, ask structured questions in a terminal UI, and continue with normalized answers instead of guessing.
-
-![pi-ask demo](docs/media/pi-ask-demo.gif)
-
-High-quality video: [demo.mp4](https://github.com/user-attachments/assets/a8503ca9-afcb-4c31-9edc-353b985a0209)
-
-## Contributions: chill mode
-
-This open source project is something I care about, and it genuinely brings me joy to see it help people. That said, I cannot promise rapid reviews or a normal pull-request turnaround.
-
-If you have an idea, bug report, or change, please open an issue. If you already have code, link to your fork or branch with the changes. I will review it carefully when I have time, then either incorporate the forked changes or implement the idea myself.
-
-I value contributions and will do my best to credit the people who help, whether that means a shout-out, a co-authored commit, or another fitting form of attribution.
+pi-ask is a [pi](https://pi.dev) extension. It gives the agent an `ask_user` tool. When the agent needs a decision, it stops and asks you structured questions in a terminal UI. You answer, and the agent continues with normalized answers instead of a guess.
 
 ## Install
 
-Requires `@earendil-works/pi-*` 0.84.0 or later. CI tests compatibility with pi 0.84.1 and 0.87.1.
-
-To check the 0.84.1 floor locally without changing the main lockfile, run `pnpm run check:pi-floor`.
+pi-ask needs pi 0.84.0 or later. The project checks run against pi 0.87.1 and against the 0.84.1 floor.
 
 ```bash
 pi install git:github.com/FasalZein/pi-ask
 ```
 
-This fork originates from [`@eko24ive/pi-ask`](https://github.com/eko24ive/pi-ask). It is not published to npm.
-
-Or try it without installing (load once for the current run):
+To try it for one run without an install:
 
 ```bash
 pi -e git:github.com/FasalZein/pi-ask
 ```
 
+pi-ask is not published to npm. Install it from GitHub.
+
 ## Features
 
-Once installed, this package gives the agent a native way to ask for clarification instead of guessing.
+- Tabbed questions. Each tab shows `○` when the question has no answer and `●` when it has one. The last tab is the Review tab.
+- Three question types: single select, multi select, and preview. A preview question shows extra text for each option. Press `t` to change the type of the active question.
+- `(recommended)` markers on the options that the agent prefers. pi-ask never selects them for you.
+- `Type your own`: a free-text answer for every question.
+- `@` file references in answer and note editors, as in pi's main editor.
+- `/` skill list in answer and note editors. Tab inserts the highlighted skill as `/skill:<name>`. Enter keeps the literal text that you typed.
+- Skills that you name in an answer load after the ask result. See [Skills and pi-better-skills](#skills-and-pi-better-skills).
+- `Ctrl+V` (`Alt+V` on Windows) pastes a clipboard image as a temporary file path, as in pi's main editor. This needs pi 0.86.0 or later. On pi 0.84.1 the key inserts nothing.
+- Notes: `n` adds a note to an option, and `Shift+N` adds a note to the question.
+- Review tab with three actions: Submit returns the answers, Elaborate asks the agent to reply to your notes first, and Cancel closes the ask without answers.
+- Long lists and review answers page with `Shift+Up`/`Shift+Down` or `PageUp`/`PageDown`. In pi fullscreen on pi-tui 0.85.0 or later, the mouse wheel scrolls them too.
+- The preview box uses the free rows of the terminal. Longer previews scroll with `[` and `]`.
+- A waiting indicator in the pi footer and the terminal title while an ask is open. Optional notifications (terminal bell or a shell command) tell you that a question waits.
+- Settings with `?` in the ask flow or `/ask-settings` in pi. You can change the keys of the ask flow. The number keys `1` to `9` and `@` are fixed.
+- Recovery: if pi stops while an ask is open, pi-ask opens the unanswered ask again on startup, resume, fork, or `/tree` navigation. After you submit or cancel the recovered ask, it does not open automatically again.
+- RPC mode uses pi dialogs. Other extensions in the same pi process can follow and answer an ask through local events. See [`docs/remote-events.md`](docs/remote-events.md).
 
-- 🧭 Familiar ask-style interface: tabbed questions, single/multi select, and preview mode
-- ⭐ Optional warning-colored `(recommended)` markers that do not preselect answers
-- ✍️ Inline free-form `Type your own` answers
-- 📎 Native pi-style `@` file references and `/` skill completion inside answer and note editors
-- 📝 Question-level and option-level notes
-- 👀 Review tab with `Submit`, `Elaborate`, and `Cancel`
-- 💬 Elaboration flow to capture note-based clarification before final submission
-- ⌨️ Context-aware customizable keymaps with aliases for main flow, editors, and settings
-- ⚙️ Ask settings with persisted behaviour, notifications, keymaps, and `/answer` extraction config
-- 🔔 Optional external notifications when an ask flow is waiting for input
-- 🔁 Slash commands for fallback/replay:
-  - `/answer` extracts questions from the latest assistant message into an ask flow
-  - `/answer:again` reopens the latest `/answer` form on the current branch
-  - `/ask:replay` replays the latest real `ask_user` form on the current branch
-- 🛟 Automatic recovery of an unanswered `ask_user` form after startup, resume, or fork
-- 🗣️ You can talk to your agent to configure pi-ask; it will read the bundled configuration guide and tailor the config for you
+## Commands
 
-## Feature walkthrough
-
-### Native `@` file references
-Use pi-style `@` file path autocomplete inside free-form answers and note editors. Type `/` at the start of text or after a space to list skills loaded by pi. Arrow keys move the highlight; Tab inserts `/skill:<name> `. Enter submits or saves literal text without selecting an automatically opened skill list, including a typed `/skill:` token. Enter still accepts file suggestions opened explicitly with Tab or through an `@` mention. When pi-better-skills is available, its ranking orders the list. On Submit or Elaborate, a known skill reference loads its body after the answer: pi-better-skills delivers it when available, or pi-ask includes a Pi-format skill block in the result. During a streaming `/answer` or recovered ask, the block stays with the queued answer. Unknown skill references stay as typed.
-
-![Native pi-style @ file references inside the ask flow](docs/media/feature-at-file-mentions.png)
-
-### Option and question notes
-Attach clarification notes to a specific option (`n`) or add broader question-level context (`Shift+N`).
-
-| Option notes | Question notes |
+| Command | Effect |
 |---|---|
-| ![Option note editor with note text for selected option](docs/media/feature-option-note.png) | ![Question-level note editor with saved note](docs/media/feature-question-note.png) |
+| `/ask-settings` | Open the pi-ask settings. The settings screen also shows the path of the configuration file. |
+| `/answer` | Extract the questions from the latest assistant message and open them as an ask. Use it when the agent asked in plain text. |
+| `/answer:again` | Open the latest `/answer` form on the current branch again. |
+| `/ask:replay` | Open the latest `ask_user` form on the current branch again. The main editor shortcut is `Ctrl+Shift+R`. |
 
-### Review tab — Elaborate and Submit
-Ask the agent to elaborate on notes before finalizing choices, or review all answers before returning them to the agent.
+The replay commands read only the current session branch. If you cancel a replayed form, the agent does not start a new turn. If you submit it, pi-ask sends the answers as a user message.
 
-| Elaborate | Submit |
-|---|---|
-| ![Review tab with Elaborate action and expanded note preview](docs/media/feature-review-elaborate.png) | ![Review tab with Submit action highlighted](docs/media/feature-review-submit.png) |
+## Configuration
 
-### Single-select and multi-select questions
-Pick one option when answers are mutually exclusive, or choose multiple options when several answers apply.
+The configuration file is `~/.pi/agent/extensions/pi-ask.json`. It holds the behaviour switches, notifications, key bindings, the replay shortcut, and the `/answer` extraction models. After you edit the file, run `/reload` or restart pi.
 
-| Single-select | Multi-select |
-|---|---|
-| ![Single-select question with one selected option](docs/media/feature-single-select.png) | ![Multi-select question with multiple selected options](docs/media/feature-multi-select.png) |
+You can also ask the agent to change the configuration. Mention `/ask-settings`, `pi-ask settings`, `keymap`, or `keybinding`, and pi-ask tells the agent to read the configuration guide first.
 
-### Preview mode
-Use a dedicated preview pane when options need richer detail.
+- [`docs/configuration.md`](docs/configuration.md): all settings, the default key bindings, and the key rules.
+- [`docs/contract.md`](docs/contract.md): the tool input and output, and the full keyboard behavior.
 
-![Preview question showing a dedicated preview pane](docs/media/feature-preview-pane.png)
+## Skills and pi-better-skills
 
-### Custom answer (`Type your own`)
-Capture free-form input inline without leaving the flow.
+pi-ask works alone. Without other extensions, the `/` list uses pi's own skill ranking. When your answer names a known skill, pi-ask adds pi's `<skill>` block for that skill to the ask result.
 
-![Inline custom answer input for Type your own option](docs/media/feature-custom-answer-input.png)
+[pi-better-skills](https://github.com/edxeth/pi-better-skills) is an optional pi extension. When it provides its skill API, pi-ask uses it for these features:
 
-## Default key bindings
+- The `/` list uses the same skill ranking as pi's main editor.
+- pi-better-skills loads the skills that you name, with its `<skill_context>` directories and the skills that those skills reference.
+- A skill that is already loaded in the session does not load a second time.
 
-Open ask settings with `?` during the ask flow, or with the `/ask-settings` command from pi.
+The skill API uses the event channel `pi-better-skills:request`, version 1. It is in the FasalZein/pi-better-skills fork and is proposed upstream in [edxeth/pi-better-skills#7](https://github.com/edxeth/pi-better-skills/pull/7). To use it now:
 
-Keymaps are context-aware and configurable in `~/.pi/agent/extensions/pi-ask.json`.
-Each action accepts a key string or an array of aliases.
-
-Default contexts:
-
-- `global`: `dismiss` (`Ctrl+C`) and `settings` (`?`)
-- `main`: confirm/cancel/toggle, tab navigation, option navigation, and note shortcuts
-- `editor`: custom answer submit/close and empty-editor navigation
-- `noteEditor`: note save/close and empty-editor navigation
-- `settingsModal`: close, next/previous setting, and toggle
-
-Fixed bindings:
-
-| Key | Context | Effect |
-|---|---|---|
-| `1..9` | Options list | Select or toggle matching option |
-| `1` `2` `3` | Review tab | Trigger `Submit` / `Elaborate` / `Cancel` |
-| `@` | Editors | File-reference affordance |
-| `Ctrl+V` (`Alt+V` on Windows) | Editors | Paste a clipboard image as a temp file path, or clipboard text, as in pi's main editor; follows pi's `app.clipboard.pasteImage` keybinding |
-| Arrow keys / `Tab` | Non-empty editor | Stay in editor for cursor movement |
-
-Review-tab shortcuts can optionally require the same number key twice via `behaviour.doublePressReviewShortcuts`. `behaviour.presentSingleAsMulti` can render future single-select questions as multi-select while preserving the requested type in results; use `main.changeQuestionType` (`t` by default) to change the active question type live.
-
-You can edit the config file yourself, ask pi to edit it for you, or use `/ask-settings` to find the exact config path, toggle behaviour/notification settings, or reset config to defaults with a guarded double press. pi-ask treats the config file as user-owned: load-time migrations and invalid files are handled in memory without rewriting or backing up the file, and read-only/externally managed configs fail gracefully with a manual-edit message.
-
-`/answer` keeps extraction within the current session model scope. Check a configured model before use with `pi auth check --provider <provider> --model <id>`.
-
-```json
-{
-  "schemaVersion": 5,
-  "answer": {
-    "extractionModels": [
-      { "provider": "openai-codex", "id": "gpt-5.4-mini" },
-      { "provider": "github-copilot", "id": "gpt-5.4-mini" },
-      { "provider": "anthropic", "id": "claude-haiku-4-5" }
-    ],
-    "extractionTimeoutMs": 30000,
-    "extractionRetries": 1
-  },
-  "behaviour": {
-    "autoSubmitWhenAnsweredWithoutNotes": false,
-    "confirmDismissWhenDirty": true,
-    "doublePressReviewShortcuts": true,
-    "presentSingleAsMulti": false,
-    "showFooterHints": true
-  },
-  "keymaps": {
-    "global": { "dismiss": ["ctrl+c"], "settings": ["?"] },
-    "main": {
-      "confirm": ["enter"],
-      "cancel": ["esc"],
-      "toggle": ["space"],
-      "changeQuestionType": ["t"],
-      "nextTab": ["tab", "right"],
-      "previousTab": ["shift+tab", "left"],
-      "nextOption": ["down"],
-      "previousOption": ["up"],
-      "optionNote": ["n"],
-      "questionNote": ["shift+n"]
-    },
-    "editor": {
-      "submit": ["enter"],
-      "close": ["esc"],
-      "nextTabWhenEmpty": ["tab", "right"],
-      "previousTabWhenEmpty": ["shift+tab", "left"],
-      "nextOptionWhenEmpty": ["down"],
-      "previousOptionWhenEmpty": ["up"]
-    },
-    "noteEditor": {
-      "save": ["enter"],
-      "close": ["esc"],
-      "nextTabWhenEmpty": ["tab", "right"],
-      "previousTabWhenEmpty": ["shift+tab", "left"],
-      "nextOptionWhenEmpty": ["down"],
-      "previousOptionWhenEmpty": ["up"]
-    },
-    "settingsModal": {
-      "close": ["esc", "ctrl+c", "?"],
-      "nextOption": ["down"],
-      "previousOption": ["up"],
-      "toggle": ["enter", "space"]
-    }
-  },
-  "notifications": {
-    "enabled": true,
-    "channels": ["bell"]
-  }
-}
+```bash
+pi install git:github.com/FasalZein/pi-better-skills
 ```
 
-Accepted notation follows pi-tui key ids. Common aliases are normalized, for example `escape` → `esc`, `return` → `enter`, `control+c` → `ctrl+c`, and `Shift+N` → `shift+n`.
-
-## Use
-
-After installation, the extension registers the `ask_user` tool plus `/ask-settings`, `/answer`, `/answer:again`, and `/ask:replay` commands.
-
-Agents can auto-discover and call `ask_user` when they need clarification instead of guessing. They can mark any number of grounded preferences with `recommended: true` and use option descriptions for reasons. In interactive sessions, it opens a terminal UI flow for structured answers, supports native pi-style `@` file references while typing answers or notes, and returns normalized answers back to the agent. Ask settings are available both from `?` in the ask flow and from the `/ask-settings` command. Behaviour and notification settings are binary `on`/`off` toggles that save immediately when the config file is writable; save failures revert the toggle and show a manual-edit message. The settings overlay includes a guarded double-press reset-to-defaults action; keymaps, notification channels, and extraction settings are changed by editing the shown config file path.
-
-### Answer and replay commands
-
-`/answer` is useful when the agent asked questions in plain text instead of using `ask_user`. It extracts questions from the latest completed assistant message and opens the same ask UI.
-
-Replay commands are branch-aware. They read persisted entries from the current pi session branch, so they work naturally with `/resume`, `/tree`, and conversation branching:
-
-- `/answer:again` reopens the latest form created by `/answer` on this branch
-- `/ask:replay` reopens the latest real `ask_user` form on this branch. The main-editor shortcut is `Ctrl+Shift+R` by default; set `shortcuts.replay` in `pi-ask.json` to a Pi key id or `null` to disable it, then run `/reload`.
-
-Cancellation is local to the UI: closing a replayed form does not start a new agent turn. Submitted answers are sent back as a normal user follow-up message.
-
-### Interrupted ask forms
-
-If Pi stops while an `ask_user` form is open, the tool call remains without a result. Starting, resuming, or forking that session reopens the newest unanswered form once. Submitting sends the result as a user message because the original tool execution no longer exists. Cancelling dismisses the automatic recovery. Either outcome prevents another automatic reopen, while `/ask:replay` remains available.
-
-New sessions and extension reloads do not trigger recovery.
-
-Kudos to [@k0valik](https://github.com/k0valik) for the `/answer` idea.
-
-You can also talk to pi to configure this extension. When asked to customize pi-ask settings, keymaps, notifications, or extraction behavior, the agent is instructed to read the bundled `docs/configuration.md` guide first and then edit the config file accordingly.
-
-The `ask_user` tool uses concise text, derives unique machine values from option labels, and has no question limit. Older calls with valid explicit values still work. Configuration guidance appears only when the user mentions `/ask-settings`, `pi-ask setting` or `pi-ask settings`, `keymap`, or `keybinding`. The extension never replaces the system prompt.
-
-You can still add your own agent instruction if you want to further reinforce usage.
-
-For exact input/output and UX guarantees, see [`docs/contract.md`](docs/contract.md).
+With a pi-better-skills version that does not have the API, pi-ask works as it does alone.
 
 ## Local development
 
-### Run locally in pi
-
-```bash
-pi -e ./src/index.ts
-```
-
-### Run in isolated test mode (extension only)
-
-```bash
-pnpm dev
-pnpm dev ../test
-```
-
-`pnpm dev [path]` runs pi with `--no-extensions --no-skills --no-prompt-templates --no-themes --no-context-files`, loads this repo’s extension, and starts pi from `[path]` by changing directories before launch (defaults to `.`).
-
-### Install dependencies
+Run the extension from a checkout:
 
 ```bash
 pnpm install
+pi -e ./src/index.ts
 ```
 
-### Install git hooks (contributors)
+`pnpm dev [path]` starts pi with only this extension loaded, in the folder `[path]`.
 
-`lefthook` is not installed automatically. If you want the local commit hooks used by this repo, run:
-
-```bash
-pnpm exec lefthook install
-```
-
-### Development commands
+Run the four gates before you commit:
 
 ```bash
-pnpm format
-pnpm lint
-pnpm check
-pnpm typecheck
 pnpm test
+pnpm typecheck
+pnpm run check:ci
+pnpm run check:pi-floor
 ```
 
-### Commit workflow
-
-This repo uses `lefthook`, Commitizen, and conventional commitlint. Releases are manual GitHub releases; this fork does not publish to npm.
-
-If you want local hooks, install them once after `pnpm install`:
-
-```bash
-pnpm exec lefthook install
-```
-
-Recommended flow:
-
-```bash
-pnpm commit
-```
-
-## Project layout
-
-- `src/` — TypeScript extension implementation
-- `tests/` — behavior-focused tests
-- `docs/` — small docs set for contract and architecture
-- `docs/media/` — repository-only README media assets
+`pnpm run check:pi-floor` runs the typecheck and the tests against pi 0.84.1 in a temporary copy. Commit messages use conventional commits. `pnpm commit` helps you write one.
 
 ## Documentation
 
-Docs stay intentionally small:
+See [`docs/README.md`](docs/README.md) for the documentation index.
 
-- `docs/README.md` — index
-- `docs/contract.md` — external behavior
-- `docs/architecture.md` — module boundaries and invariants
+## Credits
+
+pi-ask started as a fork of [`@eko24ive/pi-ask`](https://github.com/eko24ive/pi-ask) by eko24ive. It keeps the MIT license and the original copyright. See [`LICENSE`](LICENSE). The fork history is in [FasalZein/pi-ask-fork-archive](https://github.com/FasalZein/pi-ask-fork-archive).
+
+The `/answer` command came from an idea by [@k0valik](https://github.com/k0valik).
