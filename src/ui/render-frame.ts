@@ -64,7 +64,7 @@ function renderTabs(state: AskState, theme: Theme, width: number): string {
 	const tabs = state.questions.map((question, index) => {
 		const active = state.activeTabIndex === index;
 		const answered = isQuestionAnswered(state, question.id);
-		const marker = answered ? "☒" : "☐";
+		const marker = answered ? "●" : "○";
 		const text = ` ${marker} ${question.label} `;
 		return {
 			width: visibleWidth(text),

@@ -60,7 +60,7 @@ test("wide header keeps all tabs and framing arrows on the tab row", () => {
 		editor: mockEditor(),
 	});
 
-	assert.equal(lines[3], " ←  ☐ One   ☐ Two   ☰ Review  →");
+	assert.equal(lines[3], " ←  ○ One   ○ Two   ☰ Review  →");
 });
 
 test("narrow tab strip keeps active middle tab visible", () => {
@@ -109,7 +109,7 @@ test("narrow tab strip keeps active middle tab visible", () => {
 		editor: mockEditor(),
 	});
 
-	assert.equal(lines[3], " ←  ☐ Three   ☐ Four  →");
+	assert.equal(lines[3], " ←  ○ Three   ○ Four  →");
 });
 
 test("narrow tab strip keeps submit tab visible when active", () => {
@@ -189,11 +189,11 @@ test("tab strip avoids truncation at narrow boundary widths", () => {
 	state.activeTabIndex = 2;
 
 	const expectedByWidth = new Map([
-		[28, " ←  ☐ Three   ☐ Four  →"],
-		[29, " ←  ☐ Three   ☐ Four  →"],
-		[30, " ←  ☐ Three   ☐ Four  →"],
-		[31, " ←  ☐ Two   ☐ Three   ☐ Four  →"],
-		[32, " ←  ☐ Two   ☐ Three   ☐ Four  →"],
+		[28, " ←  ○ Three   ○ Four  →"],
+		[29, " ←  ○ Three   ○ Four  →"],
+		[30, " ←  ○ Three   ○ Four  →"],
+		[31, " ←  ○ Two   ○ Three   ○ Four  →"],
+		[32, " ←  ○ Two   ○ Three   ○ Four  →"],
 	]);
 
 	for (const [width, expected] of expectedByWidth) {
@@ -208,8 +208,7 @@ test("tab strip avoids truncation at narrow boundary widths", () => {
 	}
 });
 
-// Expected lines match upstream v1.2.0 output for the same state.
-test("answered tabs show the checked marker and success color; review stays success", () => {
+test("answered tabs show the filled marker and success color; review stays success", () => {
 	let state = createInitialState({
 		title: "Demo",
 		questions: ["One", "Two"].map((label) => ({
@@ -240,7 +239,7 @@ test("answered tabs show the checked marker and success color; review stays succ
 	});
 	assert.equal(
 		lines[3],
-		" <dim>← </><success> ☒ One </> [selectedBg:<text> ☐ Two </>] <success> ☰ Review </><dim> →</>"
+		" <dim>← </><success> ● One </> [selectedBg:<text> ○ Two </>] <success> ☰ Review </><dim> →</>"
 	);
 });
 
@@ -272,7 +271,7 @@ test("only the active tab gets a filled background", () => {
 		width: 80,
 		editor: mockEditor(),
 	});
-	assert.equal(question[3], " ← { ☐ One }  ☐ Two   ☰ Review  →");
+	assert.equal(question[3], " ← { ○ One }  ○ Two   ☰ Review  →");
 	state.activeTabIndex = 2;
 	state.view = { kind: "submit" };
 	const review = renderAskScreen({
@@ -282,7 +281,7 @@ test("only the active tab gets a filled background", () => {
 		width: 80,
 		editor: mockEditor(),
 	});
-	assert.equal(review[3], " ←  ☐ One   ☐ Two  { ☰ Review } →");
+	assert.equal(review[3], " ←  ○ One   ○ Two  { ☰ Review } →");
 	assert.equal(review.join("\n").includes("of 2 answered"), false);
 });
 
