@@ -337,13 +337,13 @@ for (const { width, rows } of LAYOUT_CASES) {
 	test(`settings pads the cursor one column from the border at ${width}x${rows}`, () => {
 		const list = createList({ rows });
 		const first = list.render(width);
-		assert(first.some((line) => line.startsWith("│ ❯ Auto-submit")));
+		assert(first.some((line) => line.startsWith("│ ▶ Auto-submit")));
 		list.handleInput("\x1b[B");
 		const second = list.render(width);
 		assert(second.some((line) => line.startsWith("│   Auto-submit")));
-		assert(second.some((line) => line.startsWith("│ ❯ Confirm dismiss")));
+		assert(second.some((line) => line.startsWith("│ ▶ Confirm dismiss")));
 		for (const line of [...first, ...second]) {
-			assert.equal(line.startsWith("│❯"), false);
+			assert.equal(line.startsWith("│▶"), false);
 			assert(visibleWidth(line) <= width);
 		}
 	});
@@ -409,10 +409,10 @@ for (const width of [80, 50]) {
 			assert(text.includes(FOOTER_TEXT.slice(0, 12)), `step ${step} footer`);
 			if (label === "[reset all]") {
 				assert(text.includes(label), `step ${step} reset visible`);
-				assert.equal(text.includes("❯"), false);
+				assert.equal(text.includes("▶"), false);
 			} else {
 				assert(
-					lines.some((line) => line.startsWith(`│ ❯ ${label}`)),
+					lines.some((line) => line.startsWith(`│ ▶ ${label}`)),
 					`step ${step} focus on ${label}`
 				);
 			}

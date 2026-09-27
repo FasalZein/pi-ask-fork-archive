@@ -6,7 +6,7 @@ This document defines the stable external behavior. It does not explain internal
 
 ## Model-facing tool text
 
-The extension uses one concise tool description and two guidelines. The question schema permits up to four questions and omits option `value`. It derives unique machine values from labels while accepting valid explicit values from older calls. General follow-up rules live in guideline 2. Elaborate results add an answer-first instruction to model-facing content without changing transcript rendering. Configuration guidance is conditional; the system prompt is never replaced.
+The extension uses one concise tool description and two guidelines. The question schema has no question limit and omits option `value`. It derives unique machine values from labels while accepting valid explicit values from older calls. General follow-up rules live in guideline 2. Elaborate results add an answer-first instruction to model-facing content without changing transcript rendering. Configuration guidance is conditional; the system prompt is never replaced.
 
 ## Input
 
@@ -257,7 +257,7 @@ Main flow:
 - `main.confirm`, `main.cancel`, and `main.toggle` confirm, cancel, or toggle; defaults: `Enter`, `Esc`, `Space`
 - `main.changeQuestionType` changes the active question type (non-preview: `single <-> multi`; preview: `preview <-> multi`); default: `t`; destructive `multi -> single` changes require pressing the type hotkey again, with no timeout, and the pending confirmation clears on other navigation/actions
 - `main.optionNote` and `main.questionNote` open option/question notes; defaults: `n`, `Shift+N`
-- question options and review actions use the same ` ▶ ` focus pointer; multi-select options use `[ ]` and `[✓]`, and the question shows `Pick any · N of M selected` for predefined options (plus a selected custom answer, if any), followed by one blank line; saved option notes start in the same column as the option description
+- question options, review actions, and settings rows use the same ` ▶ ` focus pointer; multi-select options use `[ ]` and `[✓]`, and the question shows `Pick any · N of M selected` for predefined options (plus a selected custom answer, if any), followed by one blank line; saved option notes start in the same column as the option description
 - question footers show the configured up/down and next-tab navigation, plus fixed `1-9` shortcuts; editor footers do not advertise tab navigation
 - footers stay on one line: when the full hint list does not fit, hints are dropped in this order: up/down move, number keys (pick/toggle), type change, tab/back navigation; confirm, note, cancel/dismiss, and settings hints always stay and wrap only when even they do not fit
 - on a short terminal, the header, tabs, question prompt, multi-selection count, and footer stay fixed while option rows and review answers window to the available rows; focused options and review actions stay visible, and indicators count hidden options or review questions when space permits
@@ -296,7 +296,7 @@ While an interactive ask flow is open, pi-ask sets the `pi-ask` footer status an
 
 ## Configuration advice
 
-Pi-ask leaves the system prompt unchanged. When the expanded user prompt mentions `pi-ask`, `ask_user`, `ask-user`, `/ask-settings`, `ask settings`, `/answer`, `/ask:replay`, `keymap`, or `keybinding` (case-insensitive), pi-ask sends the configuration-doc sentence as a hidden model-facing message. It sends only one copy while that message remains in the model context, and sends it again after compaction removes it. A typed `/ask-settings` extension command runs before prompt matching and does not trigger this message.
+Pi-ask leaves the system prompt unchanged. When the expanded user prompt mentions `/ask-settings`, `pi-ask setting` or `pi-ask settings`, `keymap`, or `keybinding` (case-insensitive), pi-ask sends the configuration-doc sentence as a hidden model-facing message. Mentions of `ask_user`, `/answer`, `pi-ask` alone, or `ask settings` do not trigger it. It sends only one copy while that message remains in the model context, and sends it again after compaction removes it. A typed `/ask-settings` extension command runs before prompt matching and does not trigger this message.
 
 ## Non-TUI and non-interactive modes
 

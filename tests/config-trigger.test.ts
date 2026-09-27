@@ -6,13 +6,9 @@ import { matchesConfigPrompt } from "../src/config-trigger.ts";
 const CONFIG_DOC_REFERENCE = /first read .*docs\/configuration\.md/;
 
 for (const term of [
-	"pi-ask",
-	"ask_user",
-	"ask-user",
 	"/ask-settings",
-	"ask settings",
-	"/answer",
-	"/ask:replay",
+	"pi-ask settings",
+	"pi-ask setting",
 	"keymap",
 	"keybinding",
 ]) {
@@ -28,6 +24,21 @@ for (const term of [
 		);
 	});
 }
+
+test("ordinary ask terms do not trigger configuration advice", () => {
+	for (const term of [
+		"ask_user",
+		"/answer",
+		"pi-ask",
+		"ask settings",
+		"ask-user",
+		"/ask:replay",
+		"keymapping",
+		"pi-ask settingslist",
+	]) {
+		assert.equal(matchesConfigPrompt(`Please update ${term}`), false, term);
+	}
+});
 
 test("unrelated prompts do not trigger configuration advice", () => {
 	assert.equal(matchesConfigPrompt("hi"), false);

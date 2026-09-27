@@ -88,7 +88,10 @@ test("registered tool uses the concise text and label-only schema", () => {
 		tool.parameters.properties.questions.description,
 		questionsDescription
 	);
-	assert.equal(tool.parameters.properties.questions.maxItems, 4);
+	assert.equal(
+		Object.hasOwn(tool.parameters.properties.questions, "maxItems"),
+		false
+	);
 	assert.equal(
 		tool.promptSnippet,
 		"Clarify ambiguous or preference-sensitive decisions with a short interactive interview before proceeding"
@@ -120,8 +123,8 @@ test("registered tool uses the concise text and label-only schema", () => {
 	);
 });
 
-test("schema limits questions to four", () => {
-	const questions = Array.from({ length: 5 }, (_, index) => ({
+test("schema has no question limit", () => {
+	const questions = Array.from({ length: 12 }, (_, index) => ({
 		id: `q${index}`,
 		prompt: "Pick",
 		options: [{ label: "Offline only" }],
@@ -132,7 +135,7 @@ test("schema limits questions to four", () => {
 		}),
 		true
 	);
-	assert.equal(Value.Check(compact.tools[0].parameters, { questions }), false);
+	assert.equal(Value.Check(compact.tools[0].parameters, { questions }), true);
 });
 
 test("option preparation fills only missing values and avoids explicit and derived collisions", () => {

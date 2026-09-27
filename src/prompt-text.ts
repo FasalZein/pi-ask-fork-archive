@@ -49,7 +49,6 @@ export const AskToolParamsSchema = {
 		questions: {
 			...AskParamsSchema.properties.questions,
 			description: "Questions to ask in the interactive clarification flow",
-			maxItems: 4,
 			items: toolQuestionSchema,
 		},
 	},
