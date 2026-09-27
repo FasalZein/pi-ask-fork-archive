@@ -569,3 +569,114 @@ test("review with wrapped shortcut hint keeps all actions inside short viewport"
 	assert(lines.some((line) => line.includes("action.")));
 	assert(lines.at(-1)?.includes("─"));
 });
+
+test("ask render reserves pi dock rows for footer, status, and widgets", async () => {
+	const { runAskFlow } = await import("../src/ui/controller.ts");
+	const { getAskConfigStore } = await import("../src/config/store.ts");
+	const { Container } = await import("@earendil-works/pi-tui");
+	getAskConfigStore().setConfig(DEFAULT_ASK_CONFIG);
+	let component:
+		| {
+				render(width: number): string[];
+				handleInput(data: string): void;
+				invalidate(): void;
+		  }
+		| undefined;
+	const editorContainer = new Container();
+	const hostRows = [1, 1, 1, 1];
+	const tui = {
+		terminal: { rows: 45, columns: 160 },
+		children: [
+			{ render: () => [] },
+			...hostRows.slice(0, 3).map((_, index) => ({
+				render: () => new Array(hostRows[index]).fill("host"),
+			})),
+			editorContainer,
+			{ render: () => new Array(hostRows[3]).fill("host") },
+		],
+		requestRender() {
+			// The fake renders only when the test requests it.
+		},
+	};
+	const flow = runAskFlow(
+		{
+			cwd: process.cwd(),
+			mode: "tui",
+			ui: {
+				custom(factory: (...args: unknown[]) => unknown) {
+					return new Promise((resolve) => {
+						component = factory(tui, theme, {}, resolve) as typeof component;
+						if (component) {
+							editorContainer.addChild(component);
+						}
+					});
+				},
+			},
+		} as never,
+		{
+			title: "Demo",
+			questions: [
+				{
+					id: "q",
+					prompt: `Choose a plan: ${"detail ".repeat(24)}`,
+					type: "preview",
+					options: [
+						{
+							value: "a",
+							label: "Option A",
+							preview: Array.from(
+								{ length: 40 },
+								(_, i) => `line ${i + 1}`
+							).join("\n"),
+						},
+						{ value: "b", label: "Option B", preview: "Short B" },
+						{ value: "c", label: "Option C", preview: "Short C" },
+					],
+				},
+				{
+					id: "q2",
+					prompt: "Second question",
+					options: [{ value: "a", label: "A" }],
+				},
+				{
+					id: "q3",
+					prompt: "Third question",
+					options: [{ value: "a", label: "A" }],
+				},
+			],
+		},
+		{ exec: async () => ({ stdout: "", stderr: "", code: 0, killed: false }) }
+	);
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.ok(component);
+	for (const [rows, width] of [
+		[70, 160],
+		[45, 160],
+		[35, 160],
+		[25, 160],
+		[45, 80],
+	] as const) {
+		tui.terminal.rows = rows;
+		const lines = component.render(width);
+		assert(
+			lines.length <= rows - hostRows.reduce((sum, count) => sum + count, 0),
+			`${width}x${rows} must leave space for the pi dock`
+		);
+		assert(lines.at(-1)?.startsWith("─"));
+		assert(lines.at(-2)?.includes("settings"));
+		if (rows === 70) {
+			assert(lines.some((line) => line.includes("line 40")));
+		}
+	}
+	// A widget can change size while the ask stays open.
+	hostRows[0] = 2;
+	tui.terminal.rows = 45;
+	const resized = component.render(160);
+	assert.equal(
+		resized.length,
+		45 - hostRows.reduce((sum, count) => sum + count, 0)
+	);
+	component.handleInput("\u0003");
+	await flow;
+	getAskConfigStore().setConfig(DEFAULT_ASK_CONFIG);
+});
