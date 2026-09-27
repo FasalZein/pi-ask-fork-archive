@@ -50,6 +50,11 @@ import { withWaitingIndicator } from "../waiting-indicator.ts";
 import { maybeAutoSubmitState } from "./auto-submit.ts";
 import { createAskAutocompleteProvider } from "./autocomplete.ts";
 import {
+	loadNativeClipboard,
+	type PasteClipboard,
+	pasteFromClipboard,
+} from "./clipboard-paste.ts";
+import {
 	DIRTY_DISMISS_NOTICE,
 	shouldConfirmDirtyDismiss,
 	shouldDiscardAfterConfirmation,
@@ -83,6 +88,7 @@ interface AskFlowOptions {
 	allowFreeform?: boolean;
 	exec: ExtensionAPI["exec"];
 	getCommands?: () => SkillCommands;
+	loadClipboard?: () => Promise<PasteClipboard | undefined>;
 	onAnswerChange?: (state: AskState) => void;
 	onTabChange?: (index: number) => void;
 	presentSingleAsMulti?: boolean;
@@ -441,9 +447,43 @@ function handleEditingCommand(
 		return;
 	}
 	if (command.kind === "delegateToEditor") {
+		if (isPasteImageKey(controller, data)) {
+			pasteIntoEditor(controller);
+			return;
+		}
 		controller.editor.handleInput(data);
 		refresh(controller);
 	}
+}
+
+// pi binds Ctrl+V (Alt+V on Windows) as app.clipboard.pasteImage only in its
+// own main editor. The ask editor receives the raw key, so handle it here with
+// the user's pi keybinding.
+function isPasteImageKey(controller: AskFlowController, data: string) {
+	return (
+		typeof controller.keybindings.matches === "function" &&
+		controller.keybindings.matches(data, "app.clipboard.pasteImage")
+	);
+}
+
+function pasteIntoEditor(controller: AskFlowController) {
+	const loadClipboard =
+		controller.flowOptions.loadClipboard ?? loadNativeClipboard;
+	// The clipboard read is async; skip the insert if the editor closed meanwhile.
+	const target = {
+		insertTextAtCursor(text: string) {
+			if (controller.finished || !isEditingView(controller.state)) {
+				return;
+			}
+			controller.editor.insertTextAtCursor(text);
+			refresh(controller);
+		},
+	};
+	loadClipboard()
+		.then((clipboard) => pasteFromClipboard(target, clipboard))
+		.catch(() => {
+			// A missing or broken clipboard helper leaves the editor unchanged.
+		});
 }
 
 function handleNavigationCommand(
