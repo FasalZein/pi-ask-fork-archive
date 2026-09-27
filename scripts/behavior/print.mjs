@@ -10,6 +10,7 @@ export async function executePrint({
 	behavior,
 	run,
 	timeoutMs,
+	upstreamEntry,
 }) {
 	const env = { ...process.env };
 	const child = spawn(
@@ -27,9 +28,7 @@ export async function executePrint({
 			"--tools",
 			"read,ask_user",
 			"-e",
-			mode === "upstream"
-				? "npm:@eko24ive/pi-ask@1.2.0"
-				: join(root, "src/index.ts"),
+			mode === "upstream" ? upstreamEntry : join(root, "src/index.ts"),
 			"--model",
 			model,
 			"--",
