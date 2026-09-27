@@ -164,19 +164,18 @@ function renderQuestionBody(
 				previewMaxTop = maxTop;
 			},
 		});
-	renderQuestion();
+	// Render at terminal height first so short content stays short. Then fit the
+	// actual box against the frame and the other question rows.
+	let previewMaxRows = args.viewport?.rows ?? 14;
+	renderQuestion(previewMaxRows);
 	if (args.viewport && previewBoxRows > 0) {
 		const available = args.viewport.rows - frameRows;
-		if (body.length > available) {
-			const reducedMax = Math.max(
-				6,
-				previewBoxRows - (body.length - available)
-			);
-			if (reducedMax < previewBoxRows) {
-				body.length = 0;
-				starts.length = 0;
-				renderQuestion(reducedMax);
-			}
+		// Wrapped scroll hints can add a row after the first reduction.
+		while (body.length > available && previewMaxRows > 6) {
+			previewMaxRows = Math.max(6, previewMaxRows - (body.length - available));
+			body.length = 0;
+			starts.length = 0;
+			renderQuestion(previewMaxRows);
 		}
 	}
 	args.onPreviewScrollTop?.(previewEffectiveTop);

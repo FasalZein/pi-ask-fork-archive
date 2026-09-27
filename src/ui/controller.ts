@@ -3,7 +3,7 @@ import {
 	type ExtensionContext,
 	getSelectListTheme,
 } from "@earendil-works/pi-coding-agent";
-import type { Editor } from "@earendil-works/pi-tui";
+import { type Component, Container, type Editor } from "@earendil-works/pi-tui";
 import type { AskConfig } from "../config/schema.ts";
 import { getAskConfigStore } from "../config/store.ts";
 import {
@@ -110,6 +110,7 @@ type AskFlowParams = AskParams &
 	};
 
 interface AskFlowController {
+	component?: Component;
 	config: AskConfig;
 	configNotice?: string;
 	ctx: ExtensionContext;
@@ -245,7 +246,7 @@ function createAskFlowController(
 		});
 	}
 
-	return {
+	const component = {
 		get focused() {
 			return controller.editor.focused;
 		},
@@ -268,6 +269,8 @@ function createAskFlowController(
 			controller.unsubscribeConfig();
 		},
 	};
+	controller.component = component;
+	return component;
 }
 
 function createAskViewport(rows: number): AskViewport {
@@ -285,7 +288,7 @@ function renderController(
 	controller: AskFlowController,
 	width: number
 ): string[] {
-	controller.viewport.rows = controller.tui.terminal?.rows ?? 24;
+	controller.viewport.rows = availableAskRows(controller, width);
 	return renderAskScreen({
 		viewport: controller.viewport,
 		previewScrollTop: controller.previewScrollTop,
@@ -300,6 +303,34 @@ function renderController(
 		theme: controller.theme,
 		width,
 	});
+}
+
+function availableAskRows(
+	controller: AskFlowController,
+	width: number
+): number {
+	const terminalRows = controller.tui.terminal?.rows ?? 24;
+	// Pi mounts the ask in its editor container. In fullscreen the dock also
+	// contains status, widgets, and footer; all consume rows outside this form.
+	const siblings = controller.tui.children;
+	const component = controller.component;
+	if (!component) {
+		return terminalRows;
+	}
+	const editorIndex = siblings?.findIndex(
+		(child) => child instanceof Container && child.children.includes(component)
+	);
+	if (editorIndex === undefined || editorIndex < 1) {
+		return terminalRows;
+	}
+	const dockRows = siblings
+		.slice(1)
+		.reduce(
+			(sum, child, index) =>
+				sum + (index + 1 === editorIndex ? 0 : child.render(width).length),
+			0
+		);
+	return Math.max(1, terminalRows - dockRows);
 }
 
 function handleWheel(
