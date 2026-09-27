@@ -1,9 +1,16 @@
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { readFileSync } from "node:fs";
+import { dirname } from "node:path";
+import {
+	type ExtensionAPI,
+	type ExtensionContext,
+	stripFrontmatter,
+} from "@earendil-works/pi-coding-agent";
 import { Text, truncateToWidth } from "@earendil-works/pi-tui";
 import { UI_DIMENSIONS } from "./constants/ui.ts";
 import { ASK_ELABORATION_INSTRUCTION } from "./prompt-text.ts";
 import { renderResultText } from "./result.ts";
 import {
+	type ResolvedSkill,
 	resolveSkillReferences,
 	type SkillCommands,
 } from "./skill-references.ts";
@@ -80,7 +87,8 @@ export function nonInteractiveResponse(
 
 export function successfulResponse(
 	result: AskResult,
-	commands: SkillCommands = []
+	commands: SkillCommands = [],
+	events?: ExtensionAPI["events"]
 ) {
 	const texts = Object.values(result.answers).flatMap((answer) => [
 		answer.customText ?? "",
@@ -97,6 +105,7 @@ export function successfulResponse(
 	const resolvedSkills = result.cancelled
 		? []
 		: resolveSkillReferences(texts, commands);
+	const fallbackSkills = deliverSkills(resolvedSkills, events);
 	return {
 		content: [
 			{
@@ -106,13 +115,89 @@ export function successfulResponse(
 					(!result.cancelled && result.mode === "elaborate"
 						? `\n${ASK_ELABORATION_INSTRUCTION}`
 						: "") +
-					resolvedSkills
-						.map(({ name, path }) => `\nRead skill /skill:${name}: ${path}`)
-						.join(""),
+					(fallbackSkills.length ? `\n\n${fallbackSkills.join("\n\n")}` : ""),
 			},
 		],
 		details: resolvedSkills.length ? { ...result, resolvedSkills } : result,
 	};
+}
+
+const SKILL_API_CHANNEL = "pi-better-skills/v1/request";
+
+function deliverSkills(
+	skills: ResolvedSkill[],
+	events?: ExtensionAPI["events"]
+): string[] {
+	if (skills.length === 0) {
+		return [];
+	}
+	let available = false;
+	events?.emit(SKILL_API_CHANNEL, {
+		version: 1,
+		operation: "probe",
+		reply: (reply: unknown) => {
+			if (isReply(reply, "probe") && reply.available === true) {
+				available = true;
+			}
+		},
+	});
+	const delivered = new Set<string>();
+	if (available) {
+		events?.emit(SKILL_API_CHANNEL, {
+			version: 1,
+			operation: "deliver",
+			names: skills.map(({ name }) => name),
+			reply: (reply: unknown) => {
+				if (!(isReply(reply, "deliver") && Array.isArray(reply.outcomes))) {
+					return;
+				}
+				for (const outcome of reply.outcomes) {
+					if (isDeliveredOutcome(outcome)) {
+						delivered.add(outcome.name);
+					}
+				}
+			},
+		});
+	}
+	return skills.flatMap(({ name, path }) => {
+		if (delivered.has(name)) {
+			return [];
+		}
+		try {
+			const body = stripFrontmatter(readFileSync(path, "utf-8")).trim();
+			return [
+				`<skill name="${name}" location="${path}">\nReferences are relative to ${dirname(path)}.\n\n${body}\n</skill>`,
+			];
+		} catch {
+			// A stale command path must not discard the submitted answers.
+			return [];
+		}
+	});
+}
+
+function isDeliveredOutcome(value: unknown): value is { name: string } {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		"name" in value &&
+		typeof value.name === "string" &&
+		"status" in value &&
+		(value.status === "delivered" || value.status === "already-resident")
+	);
+}
+
+function isReply(
+	value: unknown,
+	operation: string
+): value is Record<string, unknown> {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		"version" in value &&
+		value.version === 1 &&
+		"operation" in value &&
+		value.operation === operation
+	);
 }
 
 type ToolTheme = ExtensionContext["ui"]["theme"];

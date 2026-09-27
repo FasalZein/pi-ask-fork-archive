@@ -303,7 +303,7 @@ async function runReplayCommand(
 }
 
 async function runAskAndSendSubmittedResult(
-	pi: Pick<ExtensionAPI, "sendUserMessage" | "exec" | "getCommands">,
+	pi: Pick<ExtensionAPI, "sendUserMessage" | "exec" | "getCommands" | "events">,
 	ctx: ExtensionContext,
 	params: AskParams,
 	options: {
@@ -342,11 +342,15 @@ async function withHiddenWorkingRow<T>(
 }
 
 function sendAskResult(
-	pi: Pick<ExtensionAPI, "sendUserMessage" | "getCommands">,
+	pi: Pick<ExtensionAPI, "sendUserMessage" | "getCommands" | "events">,
 	result: AskResult,
 	ctx: Pick<ExtensionContext, "isIdle">
 ): void {
-	const response = successfulResponse(result, pi.getCommands());
+	const response = successfulResponse(
+		result,
+		pi.getCommands(),
+		ctx.isIdle() ? pi.events : undefined
+	);
 	const text = response.content[0];
 	pi.sendUserMessage(
 		text.text,

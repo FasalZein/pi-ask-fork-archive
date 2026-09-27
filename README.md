@@ -66,7 +66,7 @@ Once installed, this package gives the agent a native way to ask for clarificati
 ## Feature walkthrough
 
 ### Native `@` file references
-Use pi-style `@` file path autocomplete inside free-form answers and note editors. Type `/skill:` anywhere in a custom answer or note to complete a skill loaded by pi. On Submit or Elaborate, a known skill reference adds a `SKILL.md` path to the model-facing result, so the agent can read it. The skill body is not inserted. Unknown skill references stay as typed. This also applies to `/answer` and recovered asks.
+Use pi-style `@` file path autocomplete inside free-form answers and note editors. Type `/skill:` anywhere in a custom answer or note to complete a skill loaded by pi. On Submit or Elaborate, a known skill reference loads its body after the answer: pi-better-skills delivers it when available, or pi-ask includes a Pi-format skill block in the result. During a streaming `/answer` or recovered ask, the block stays with the queued answer. Unknown skill references stay as typed.
 
 ![Native pi-style @ file references inside the ask flow](docs/media/feature-at-file-mentions.png)
 

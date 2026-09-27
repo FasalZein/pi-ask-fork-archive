@@ -724,3 +724,107 @@ test("ask tool transcript renderers summarize call and cancelled result", () => 
 		'Validation failed for tool "ask_user": missing label'
 	);
 });
+
+test("ask_user asks the skill provider to deliver after a submitted tool result", async () => {
+	const { createEventBus } = await import("@earendil-works/pi-coding-agent");
+	const { createRemoteAskRuntime, PI_ASK_STARTED_EVENT, PI_ASK_SUBMIT_EVENT } =
+		await import("../src/remote-ask.ts");
+	const { getAskConfigStore } = await import("../src/config/store.ts");
+	const { DEFAULT_ASK_CONFIG } = await import("../src/config/defaults.ts");
+	const { fileURLToPath } = await import("node:url");
+	const bus = createEventBus();
+	const remote = createRemoteAskRuntime(bus);
+	const requests: string[][] = [];
+	bus.on("pi-better-skills/v1/request", (request: unknown) => {
+		const r = request as {
+			operation: string;
+			names?: string[];
+			reply: (value: unknown) => void;
+		};
+		if (r.operation === "probe") {
+			r.reply({ version: 1, operation: "probe", available: true });
+		}
+		if (r.operation === "deliver") {
+			requests.push(r.names ?? []);
+			r.reply({
+				version: 1,
+				operation: "deliver",
+				outcomes: [{ name: "tdd", status: "delivered" }],
+			});
+		}
+	});
+	bus.on(PI_ASK_STARTED_EVENT, (event: unknown) => {
+		const started = event as { flowId: string };
+		bus.emit(PI_ASK_SUBMIT_EVENT, {
+			version: 1,
+			requestId: "tool-answer",
+			flowId: started.flowId,
+			response: {
+				kind: "answer",
+				answers: { goal: { values: ["speed"], note: "Use /skill:tdd" } },
+			},
+		});
+	});
+	const config = getAskConfigStore();
+	config.setConfig({
+		...DEFAULT_ASK_CONFIG,
+		notifications: { ...DEFAULT_ASK_CONFIG.notifications, enabled: false },
+	});
+	const tools: any[] = [];
+	registerAskTool(
+		{
+			events: bus,
+			getCommands: () => [
+				{
+					name: "skill:tdd",
+					source: "skill",
+					sourceInfo: {
+						path: fileURLToPath(
+							new URL("./fixtures/skill/SKILL.md", import.meta.url)
+						),
+					},
+				},
+			],
+			appendEntry: noop,
+			registerTool(tool: unknown) {
+				tools.push(tool);
+			},
+		} as never,
+		remote
+	);
+	try {
+		const result = await tools[0].execute(
+			"tool-answer",
+			sampleParams(),
+			undefined,
+			noop,
+			{
+				cwd: process.cwd(),
+				mode: "tui",
+				ui: {
+					setWorkingVisible: noop,
+					custom: (callback: (...args: any[]) => unknown) =>
+						new Promise((resolve) => {
+							callback(
+								{ requestRender: noop },
+								{
+									bg: (_: string, text: string) => text,
+									fg: (_: string, text: string) => text,
+								},
+								{},
+								resolve
+							);
+						}),
+				},
+			}
+		);
+		assert.deepEqual(requests, [["tdd"]]);
+		assert.equal(
+			result.content[0].text,
+			"Goal: Speed\nGoal note: Use /skill:tdd"
+		);
+	} finally {
+		remote.disposeAll();
+		config.setConfig(DEFAULT_ASK_CONFIG);
+	}
+});

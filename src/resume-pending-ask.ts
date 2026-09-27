@@ -66,7 +66,12 @@ export function registerPendingAskResume(
 async function reopenPendingAsk(
 	pi: Pick<
 		ExtensionAPI,
-		"appendEntry" | "setLabel" | "sendUserMessage" | "exec" | "getCommands"
+		| "appendEntry"
+		| "setLabel"
+		| "sendUserMessage"
+		| "exec"
+		| "getCommands"
+		| "events"
 	>,
 	ctx: ExtensionContext,
 	pendingAsk: PendingAskToolCall,
@@ -114,7 +119,11 @@ async function reopenPendingAsk(
 		return;
 	}
 
-	const text = successfulResponse(result, pi.getCommands()).content[0].text;
+	const text = successfulResponse(
+		result,
+		pi.getCommands(),
+		ctx.isIdle() ? pi.events : undefined
+	).content[0].text;
 	pi.sendUserMessage(
 		text,
 		ctx.isIdle() ? undefined : { deliverAs: "followUp" }
