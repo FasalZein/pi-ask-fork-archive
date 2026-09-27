@@ -10,7 +10,6 @@ import {
 	symlink,
 	writeFile,
 } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -120,21 +119,30 @@ if (upstreamCopy) {
 }
 
 async function copyUpstream() {
-	const npmRoot = join(
-		process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi/agent"),
-		"npm"
-	);
-	const require = createRequire(join(npmRoot, "package.json"));
+	// Install the pinned upstream package into a temp prefix, so the baseline never depends on pi's settings.
+	const install = await mkdtemp(join(tmpdir(), "pi-ask-upstream-install-"));
 	let manifest;
 	try {
-		manifest = require.resolve("@eko24ive/pi-ask/package.json");
-	} catch {
-		// Pi owns the npm cache. Its extension resolver installs an absent package.
-		execFileSync("pi", ["-e", "npm:@eko24ive/pi-ask@1.2.0", "--help"], {
-			stdio: "ignore",
-			timeout: 30_000,
-		});
-		manifest = require.resolve("@eko24ive/pi-ask/package.json");
+		execFileSync(
+			"npm",
+			[
+				"install",
+				"--prefix",
+				install,
+				"--no-save",
+				"--ignore-scripts",
+				"--no-audit",
+				"--no-fund",
+				"--omit=dev",
+				"--omit=peer",
+				"@eko24ive/pi-ask@1.2.0",
+			],
+			{ stdio: "ignore", timeout: 120_000 }
+		);
+		manifest = join(install, "node_modules/@eko24ive/pi-ask/package.json");
+	} catch (error) {
+		await rm(install, { recursive: true, force: true });
+		throw error;
 	}
 	const packageInfo = JSON.parse(readFileSync(manifest, "utf8"));
 	if (packageInfo.version !== "1.2.0") {
@@ -152,6 +160,8 @@ async function copyUpstream() {
 	} catch (error) {
 		await rm(destination, { recursive: true, force: true });
 		throw error;
+	} finally {
+		await rm(install, { recursive: true, force: true });
 	}
 }
 
