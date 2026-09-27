@@ -1,3 +1,9 @@
+## Unreleased
+
+* Remove the question cap; the ask tool has no question limit.
+* Narrow hidden configuration advice to `/ask-settings`, `pi-ask setting` or `pi-ask settings`, `keymap`, and `keybinding`.
+* Align the settings focus pointer with the question and review screens (` ▶ `).
+
 # [1.4.0](https://github.com/FasalZein/pi-ask/compare/v1.3.0...v1.4.0) (2026-09-26)
 
 ### BREAKING CHANGES
@@ -21,7 +27,7 @@ First release of the fork `@fasalzein/pi-ask`. It is installed from GitHub (`pi 
 
 ### Features
 
-* compact prompt mode (`PI_ASK_PROMPT_MODE=compact`): shorter tool text, follow-up rules in the tool text, option labels as identifiers with derived values, at most four questions per ask, and configuration guidance only when the prompt mentions pi-ask settings ([#13](https://github.com/FasalZein/pi-ask/issues/13), [#17](https://github.com/FasalZein/pi-ask/issues/17), [#30](https://github.com/FasalZein/pi-ask/issues/30), [#33](https://github.com/FasalZein/pi-ask/issues/33), [#38](https://github.com/FasalZein/pi-ask/issues/38), [#47](https://github.com/FasalZein/pi-ask/issues/47)). Full mode stays the default and keeps the upstream 1.2.0 text.
+* compact prompt mode (`PI_ASK_PROMPT_MODE=compact`): shorter tool text, follow-up rules in the tool text, option labels as identifiers with derived values, no question limit, and configuration guidance only when the prompt mentions pi-ask settings ([#13](https://github.com/FasalZein/pi-ask/issues/13), [#17](https://github.com/FasalZein/pi-ask/issues/17), [#30](https://github.com/FasalZein/pi-ask/issues/30), [#33](https://github.com/FasalZein/pi-ask/issues/33), [#38](https://github.com/FasalZein/pi-ask/issues/38), [#47](https://github.com/FasalZein/pi-ask/issues/47)). Full mode stays the default and keeps the upstream 1.2.0 text.
 * refreshed TUI: question screen, progress header and text tabs, paged navigation, review summary with question rows, pi border and editor theme tokens, capped preview text with scroll counts, and mouse wheel scrolling ([#15](https://github.com/FasalZein/pi-ask/issues/15), [#21](https://github.com/FasalZein/pi-ask/issues/21), [#22](https://github.com/FasalZein/pi-ask/issues/22), [#23](https://github.com/FasalZein/pi-ask/issues/23), [#25](https://github.com/FasalZein/pi-ask/issues/25), [#26](https://github.com/FasalZein/pi-ask/issues/26), [#27](https://github.com/FasalZein/pi-ask/issues/27))
 * RPC mode opens pi dialogs and emits bridge lifecycle events ([#14](https://github.com/FasalZein/pi-ask/issues/14))
 * live partial answers through tool updates while the ask flow is open ([#19](https://github.com/FasalZein/pi-ask/issues/19))

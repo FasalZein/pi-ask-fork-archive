@@ -1,6 +1,6 @@
 // The event prompt is expanded user text. Pi handles typed extension commands before this event.
 const CONFIG_TERMS =
-	/pi-ask|ask_user|ask-user|\/ask-settings|ask settings|\/answer|\/ask:replay|keymap|keybinding/i;
+	/(?:\/ask-settings(?![\w-])|\bpi-ask settings?\b|\bkeymap\b|\bkeybinding\b)/i;
 
 export function matchesConfigPrompt(prompt: string): boolean {
 	return CONFIG_TERMS.test(prompt);

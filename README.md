@@ -223,7 +223,7 @@ Kudos to [@k0valik](https://github.com/k0valik) for the `/answer` idea.
 
 You can also talk to pi to configure this extension. When asked to customize pi-ask settings, keymaps, notifications, or extraction behavior, the agent is instructed to read the bundled `docs/configuration.md` guide first and then edit the config file accordingly.
 
-The `ask_user` tool uses concise text, derives unique machine values from option labels, and allows up to four questions per call. Older calls with valid explicit values still work. Configuration guidance appears only when the user mentions pi-ask settings or keys. The extension never replaces the system prompt.
+The `ask_user` tool uses concise text, derives unique machine values from option labels, and has no question limit. Older calls with valid explicit values still work. Configuration guidance appears only when the user mentions `/ask-settings`, `pi-ask setting` or `pi-ask settings`, `keymap`, or `keybinding`. The extension never replaces the system prompt.
 
 You can still add your own agent instruction if you want to further reinforce usage.
 

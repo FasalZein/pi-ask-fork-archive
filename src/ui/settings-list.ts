@@ -11,6 +11,7 @@ import {
 	matchesBinding,
 	renderSettingsFooterKeymaps,
 } from "../constants/keymaps.ts";
+import { UI_TEXT } from "../constants/ui.ts";
 
 interface Theme {
 	bg(color: string, text: string): string;
@@ -33,7 +34,6 @@ interface AskSettingsListOptions {
 
 const DESCRIPTION_LINE_COUNT = 3;
 // Rows start with one column of padding, then the cursor slot.
-const CURSOR_PREFIX = " ❯ ";
 const ROW_INDENT = "   ";
 const COMPACT_WIDTH = 40;
 const MIN_ROWS_WITH_CUES = 3;
@@ -398,7 +398,7 @@ export class AskSettingsList {
 	): string[] {
 		const selected = index === this.focusIndex;
 		const prefix = selected
-			? this.theme.fg("accent", CURSOR_PREFIX)
+			? this.theme.fg("accent", UI_TEXT.cursor)
 			: ROW_INDENT;
 		const continuationPrefix = ROW_INDENT;
 		if (setting.type === "action") {
