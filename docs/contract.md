@@ -214,7 +214,7 @@ While the TUI or RPC ask flow is open, `ask_user` sends a tool update after each
 
 ## Supported UX
 
-- tabbed multi-question flow; the tab bar shows `☐`/`☒` unanswered/answered markers and a `☰ Review` tab between `←` and `→` arrows, highlights the active tab, and keeps it visible on narrow terminals
+- tabbed multi-question flow; the tab bar shows `○`/`●` unanswered/answered markers and a `☰ Review` tab between `←` and `→` arrows, highlights the active tab, and keeps it visible on narrow terminals
 - rules and preview frames use pi border colors; the custom-answer and note editor uses pi editor colors and completion-list styling
 - single-select, multi-select, and preview questions
 - preview boxes appear beside options at wide widths and below them at narrow widths; each is at most 14 rows tall and shrinks on short terminals. Long previews scroll independently with `[` and `]` by default, show the number of lines above and below, and preserve plain-text spacing without Markdown. Long option descriptions may be shortened inside the cap.
