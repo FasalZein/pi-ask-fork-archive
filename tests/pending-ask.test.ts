@@ -425,7 +425,7 @@ test("resumed submit persists dismissal, delivers an answer, and emits remote li
 	const bus = new TestEventBus();
 	const remoteAsk = createRemoteAskRuntime(bus as never);
 	let skillRequests = 0;
-	bus.on("pi-better-skills/v1/request", () => {
+	bus.on("pi-better-skills:request", () => {
 		skillRequests++;
 	});
 	const delivered: Array<{ text: string; options: unknown }> = [];
@@ -505,14 +505,19 @@ test("idle resumed submit uses the provider without inlining a duplicate", {
 	const bus = new TestEventBus();
 	const remoteAsk = createRemoteAskRuntime(bus as never);
 	const skillRequests: string[][] = [];
-	bus.on("pi-better-skills/v1/request", (request: unknown) => {
+	bus.on("pi-better-skills:request", (request: unknown) => {
 		const r = request as {
 			operation: string;
 			names?: string[];
 			reply: (value: unknown) => void;
 		};
 		if (r.operation === "probe") {
-			r.reply({ version: 1, operation: "probe", available: true });
+			r.reply({
+				version: 1,
+				operation: "probe",
+				available: true,
+				versions: [1],
+			});
 		}
 		if (r.operation === "deliver") {
 			skillRequests.push(r.names ?? []);

@@ -135,14 +135,19 @@ test("better-skills ranking is used when available; absent API retains pi rankin
 		["skill:tdd", "skill:other"]
 	);
 	const queries: string[] = [];
-	events.on("pi-better-skills/v1/request", (request: unknown) => {
+	events.on("pi-better-skills:request", (request: unknown) => {
 		const message = request as {
 			operation: string;
 			query?: string;
 			reply: (value: unknown) => void;
 		};
 		if (message.operation === "probe") {
-			message.reply({ version: 1, operation: "probe", available: true });
+			message.reply({
+				version: 1,
+				operation: "probe",
+				available: true,
+				versions: [1],
+			});
 		} else if (message.operation === "suggest") {
 			queries.push(message.query ?? "missing");
 			message.reply({
@@ -172,6 +177,39 @@ test("better-skills ranking is used when available; absent API retains pi rankin
 	assert.deepEqual(
 		matched?.items.map((item) => item.value),
 		["skill:other", "skill:tdd"]
+	);
+});
+
+test("unsupported provider versions use registered skill suggestions", async () => {
+	const events = createEventBus();
+	let suggestionsRequested = 0;
+	let probes = 0;
+	events.on("pi-better-skills:request", (request: unknown) => {
+		const message = request as {
+			operation: string;
+			reply: (value: unknown) => void;
+		};
+		if (message.operation === "probe") {
+			probes++;
+			message.reply({
+				version: 1,
+				operation: "probe",
+				available: true,
+				versions: [2],
+			});
+		} else if (message.operation === "suggest") {
+			suggestionsRequested++;
+		}
+	});
+	const provider = createAskAutocompleteProvider(process.cwd(), skills, events);
+	const result = await provider.getSuggestions(["/"], 0, 1, {
+		signal: new AbortController().signal,
+	});
+	assert.equal(probes, 1);
+	assert.equal(suggestionsRequested, 0);
+	assert.deepEqual(
+		result?.items.map((item) => item.value),
+		["skill:tdd", "skill:other"]
 	);
 });
 

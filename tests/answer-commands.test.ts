@@ -190,14 +190,19 @@ test("/answer replay loads the skill in its user message", async () => {
 			sent,
 			`Goal: Speed\nGoal note: Use /skill:tdd\n\n<skill name="tdd" location="${fileURLToPath(new URL("./fixtures/skill/SKILL.md", import.meta.url))}">\nReferences are relative to ${dirname(fileURLToPath(new URL("./fixtures/skill/SKILL.md", import.meta.url)))}.\n\n# Test first\nStart with a failing test.\n</skill>`
 		);
-		bus.on("pi-better-skills/v1/request", (request: unknown) => {
+		bus.on("pi-better-skills:request", (request: unknown) => {
 			const r = request as {
 				operation: string;
 				names?: string[];
 				reply: (value: unknown) => void;
 			};
 			if (r.operation === "probe") {
-				r.reply({ version: 1, operation: "probe", available: true });
+				r.reply({
+					version: 1,
+					operation: "probe",
+					available: true,
+					versions: [1],
+				});
 			}
 			if (r.operation === "deliver") {
 				requests.push(r.names ?? []);
