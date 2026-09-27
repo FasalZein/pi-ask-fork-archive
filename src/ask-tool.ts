@@ -58,7 +58,10 @@ export function registerAskTool(
 }
 
 async function executeAskTool(
-	pi: Pick<ExtensionAPI, "appendEntry" | "setLabel" | "exec" | "getCommands">,
+	pi: Pick<
+		ExtensionAPI,
+		"appendEntry" | "setLabel" | "exec" | "getCommands" | "events"
+	>,
 	toolCallId: string,
 	params: AskParams,
 	signal: AbortSignal | undefined,
@@ -126,7 +129,7 @@ async function executeAskTool(
 					});
 		return result.cancelReason === "aborted"
 			? abortedResponse(params)
-			: successfulResponse(result, pi.getCommands());
+			: successfulResponse(result, pi.getCommands(), pi.events);
 	} finally {
 		acceptingUpdates = false;
 		ctx.ui.setWorkingVisible(true);

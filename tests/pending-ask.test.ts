@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { findLatestPayloadInCurrentBranch } from "../src/ask-payload-store.ts";
 import { DEFAULT_ASK_CONFIG } from "../src/config/defaults.ts";
 import { getAskConfigStore } from "../src/config/store.ts";
@@ -20,7 +21,8 @@ import { registerPendingAskResume } from "../src/resume-pending-ask.ts";
 import type { AskParams } from "../src/types.ts";
 
 const CANVAS_RE = /Canvas/;
-const SKILL_POINTER_RE = /Read skill \/skill:tdd: \/skills\/tdd\/SKILL\.md/;
+const SKILL_BLOCK_RE =
+	/<skill name="tdd" location="[^"]+">\nReferences are relative to [^\n]+\n\n# Test first\nStart with a failing test\.\n<\/skill>/;
 
 const params: AskParams = {
 	title: "Choose engine",
@@ -422,6 +424,10 @@ test("resumed submit persists dismissal, delivers an answer, and emits remote li
 	const branch: unknown[] = [askToolCall("call-1"), storedPayload("call-1")];
 	const bus = new TestEventBus();
 	const remoteAsk = createRemoteAskRuntime(bus as never);
+	let skillRequests = 0;
+	bus.on("pi-better-skills/v1/request", () => {
+		skillRequests++;
+	});
 	const delivered: Array<{ text: string; options: unknown }> = [];
 	let resolveDelivery: (() => void) | undefined;
 	const delivery = new Promise<void>((resolve) => {
@@ -429,12 +435,15 @@ test("resumed submit persists dismissal, delivers an answer, and emits remote li
 	});
 	const harness = createResumeHarness(branch, remoteAsk, {
 		idle: false,
+		events: bus,
 		commands: [
 			{
 				name: "skill:tdd",
 				source: "skill",
 				sourceInfo: {
-					path: "/skills/tdd/SKILL.md",
+					path: fileURLToPath(
+						new URL("./fixtures/skill/SKILL.md", import.meta.url)
+					),
 					source: "test",
 					scope: "user",
 					origin: "top-level",
@@ -470,8 +479,104 @@ test("resumed submit persists dismissal, delivers an answer, and emits remote li
 	]);
 	assert.equal(delivered.length, 1);
 	assert.match(delivered[0].text, CANVAS_RE);
-	assert.match(delivered[0].text, SKILL_POINTER_RE);
+	assert.match(delivered[0].text, SKILL_BLOCK_RE);
+	assert.equal(skillRequests, 0);
 	assert.deepEqual(delivered[0].options, { deliverAs: "followUp" });
+
+	const started = findEvent<RemoteAskStartedEvent>(bus, PI_ASK_STARTED_EVENT);
+	assert.equal(started.source, "ask:resume");
+	assert.equal(started.toolCallId, "call-1");
+	const completed = findEvent<RemoteAskCompletedEvent>(
+		bus,
+		PI_ASK_COMPLETED_EVENT
+	);
+	assert.equal(completed.source, "ask:resume");
+	assert.equal(completed.result.cancelled, false);
+
+	remoteAsk.disposeAll();
+	getAskConfigStore().setConfig(DEFAULT_ASK_CONFIG);
+});
+
+test("idle resumed submit uses the provider without inlining a duplicate", {
+	timeout: 2000,
+}, async () => {
+	getAskConfigStore().setConfig(disabledNotificationConfig());
+	const branch: unknown[] = [askToolCall("call-1"), storedPayload("call-1")];
+	const bus = new TestEventBus();
+	const remoteAsk = createRemoteAskRuntime(bus as never);
+	const skillRequests: string[][] = [];
+	bus.on("pi-better-skills/v1/request", (request: unknown) => {
+		const r = request as {
+			operation: string;
+			names?: string[];
+			reply: (value: unknown) => void;
+		};
+		if (r.operation === "probe") {
+			r.reply({ version: 1, operation: "probe", available: true });
+		}
+		if (r.operation === "deliver") {
+			skillRequests.push(r.names ?? []);
+			r.reply({
+				version: 1,
+				operation: "deliver",
+				outcomes: [{ name: "tdd", status: "already-resident" }],
+			});
+		}
+	});
+	const delivered: Array<{ text: string; options: unknown }> = [];
+	let resolveDelivery: (() => void) | undefined;
+	const delivery = new Promise<void>((resolve) => {
+		resolveDelivery = resolve;
+	});
+	const harness = createResumeHarness(branch, remoteAsk, {
+		idle: true,
+		events: bus,
+		commands: [
+			{
+				name: "skill:tdd",
+				source: "skill",
+				sourceInfo: {
+					path: fileURLToPath(
+						new URL("./fixtures/skill/SKILL.md", import.meta.url)
+					),
+					source: "test",
+					scope: "user",
+					origin: "top-level",
+				},
+			},
+		],
+		onSend(text, options) {
+			delivered.push({ text, options });
+			resolveDelivery?.();
+		},
+	});
+
+	bus.on(PI_ASK_STARTED_EVENT, (data) => {
+		const started = data as RemoteAskStartedEvent;
+		bus.emit(PI_ASK_SUBMIT_EVENT, {
+			version: 1,
+			requestId: "submit-1",
+			flowId: started.flowId,
+			response: {
+				kind: "answer",
+				answers: { engine: { values: ["canvas"], note: "use /skill:tdd" } },
+			},
+		});
+	});
+
+	const handlerResult = harness.start("resume");
+	assert.equal(handlerResult, undefined);
+	await delivery;
+
+	assert.deepEqual(harness.dismissedToolCallIds, ["call-1"]);
+	assert.deepEqual(harness.labels, [
+		["payload-call-1", "ask: Choose engine (answered)"],
+	]);
+	assert.equal(delivered.length, 1);
+	assert.match(delivered[0].text, CANVAS_RE);
+	assert.doesNotMatch(delivered[0].text, SKILL_BLOCK_RE);
+	assert.deepEqual(skillRequests, [["tdd"]]);
+	assert.equal(delivered[0].options, undefined);
 
 	const started = findEvent<RemoteAskStartedEvent>(bus, PI_ASK_STARTED_EVENT);
 	assert.equal(started.source, "ask:resume");
@@ -654,6 +759,7 @@ function createResumeHarness(
 		commands?: ReturnType<
 			import("@earendil-works/pi-coding-agent").ExtensionAPI["getCommands"]
 		>;
+		events?: TestEventBus;
 	} = {}
 ) {
 	let sessionStartHandler: ((event: any, ctx: any) => void) | undefined;
@@ -664,6 +770,7 @@ function createResumeHarness(
 
 	registerPendingAskResume(
 		{
+			events: options.events,
 			getCommands() {
 				return options.commands ?? [];
 			},
