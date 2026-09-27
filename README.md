@@ -36,7 +36,7 @@ pi-ask is not published to npm. Install it from GitHub.
 - Notes: `n` adds a note to an option, and `Shift+N` adds a note to the question.
 - Review tab with three actions: Submit returns the answers, Elaborate asks the agent to reply to your notes first, and Cancel closes the ask without answers.
 - Long lists and review answers page with `Shift+Up`/`Shift+Down` or `PageUp`/`PageDown`. In pi fullscreen on pi-tui 0.85.0 or later, the mouse wheel scrolls them too.
-- Long previews scroll with `[` and `]`.
+- The preview box uses the free rows of the terminal. Longer previews scroll with `[` and `]`.
 - A waiting indicator in the pi footer and the terminal title while an ask is open. Optional notifications (terminal bell or a shell command) tell you that a question waits.
 - Settings with `?` in the ask flow or `/ask-settings` in pi. You can change the keys of the ask flow. The number keys `1` to `9` and `@` are fixed.
 - Recovery: if pi stops while an ask is open, pi-ask opens the unanswered ask again on startup, resume, fork, or `/tree` navigation. After you submit or cancel the recovered ask, it does not open automatically again.
@@ -72,7 +72,13 @@ pi-ask works alone. Without other extensions, the `/` list uses pi's own skill r
 - pi-better-skills loads the skills that you name, with its `<skill_context>` directories and the skills that those skills reference.
 - A skill that is already loaded in the session does not load a second time.
 
-The skill API uses the event channel `pi-better-skills:request`, version 1. No released version of pi-better-skills has this API yet. The API is on the `feat/skill-delivery-api` branch of the FasalZein/pi-better-skills fork and waits for an upstream pull request. With a released pi-better-skills version, pi-ask works as it does alone.
+The skill API uses the event channel `pi-better-skills:request`, version 1. It is in the FasalZein/pi-better-skills fork and is proposed upstream in [edxeth/pi-better-skills#7](https://github.com/edxeth/pi-better-skills/pull/7). To use it now:
+
+```bash
+pi install git:github.com/FasalZein/pi-better-skills
+```
+
+With a pi-better-skills version that does not have the API, pi-ask works as it does alone.
 
 ## Local development
 
@@ -102,6 +108,6 @@ See [`docs/README.md`](docs/README.md) for the documentation index.
 
 ## Credits
 
-This project is a fork of [`@eko24ive/pi-ask`](https://github.com/eko24ive/pi-ask) by eko24ive. The fork keeps the MIT license and the original copyright. See [`LICENSE`](LICENSE).
+pi-ask started as a fork of [`@eko24ive/pi-ask`](https://github.com/eko24ive/pi-ask) by eko24ive. It keeps the MIT license and the original copyright. See [`LICENSE`](LICENSE). The fork history is in [FasalZein/pi-ask-fork-archive](https://github.com/FasalZein/pi-ask-fork-archive).
 
 The `/answer` command came from an idea by [@k0valik](https://github.com/k0valik).
