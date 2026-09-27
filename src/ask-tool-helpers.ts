@@ -141,19 +141,49 @@ function deliverSkills(
 			}
 		},
 	});
+	const delivered = new Set<string>();
 	if (available) {
 		events?.emit(SKILL_API_CHANNEL, {
 			version: 1,
 			operation: "deliver",
 			names: skills.map(({ name }) => name),
-			reply: () => undefined,
+			reply: (reply: unknown) => {
+				if (!(isReply(reply, "deliver") && Array.isArray(reply.outcomes))) {
+					return;
+				}
+				for (const outcome of reply.outcomes) {
+					if (isDeliveredOutcome(outcome)) {
+						delivered.add(outcome.name);
+					}
+				}
+			},
 		});
-		return [];
 	}
-	return skills.map(({ name, path }) => {
-		const body = stripFrontmatter(readFileSync(path, "utf-8")).trim();
-		return `<skill name="${name}" location="${path}">\nReferences are relative to ${dirname(path)}.\n\n${body}\n</skill>`;
+	return skills.flatMap(({ name, path }) => {
+		if (delivered.has(name)) {
+			return [];
+		}
+		try {
+			const body = stripFrontmatter(readFileSync(path, "utf-8")).trim();
+			return [
+				`<skill name="${name}" location="${path}">\nReferences are relative to ${dirname(path)}.\n\n${body}\n</skill>`,
+			];
+		} catch {
+			// A stale command path must not discard the submitted answers.
+			return [];
+		}
 	});
+}
+
+function isDeliveredOutcome(value: unknown): value is { name: string } {
+	return (
+		value !== null &&
+		typeof value === "object" &&
+		"name" in value &&
+		typeof value.name === "string" &&
+		"status" in value &&
+		(value.status === "delivered" || value.status === "already-resident")
+	);
 }
 
 function isReply(

@@ -83,8 +83,11 @@ test("/answer replay loads the skill in its user message", async () => {
 		{ handler: (args: string, ctx: any) => Promise<void> }
 	>();
 	let sent = "";
+	let idle = true;
+	const requests: string[][] = [];
 	registerAnswerCommands(
 		{
+			events: bus,
 			registerCommand(
 				name: string,
 				command: { handler: (args: string, ctx: any) => Promise<void> }
@@ -139,7 +142,7 @@ test("/answer replay loads the skill in its user message", async () => {
 	const ctx = {
 		cwd: process.cwd(),
 		mode: "tui",
-		isIdle: () => true,
+		isIdle: () => idle,
 		sessionManager: {
 			getBranch: () => [
 				{
@@ -187,6 +190,31 @@ test("/answer replay loads the skill in its user message", async () => {
 			sent,
 			`Goal: Speed\nGoal note: Use /skill:tdd\n\n<skill name="tdd" location="${fileURLToPath(new URL("./fixtures/skill/SKILL.md", import.meta.url))}">\nReferences are relative to ${dirname(fileURLToPath(new URL("./fixtures/skill/SKILL.md", import.meta.url)))}.\n\n# Test first\nStart with a failing test.\n</skill>`
 		);
+		bus.on("pi-better-skills/v1/request", (request: unknown) => {
+			const r = request as {
+				operation: string;
+				names?: string[];
+				reply: (value: unknown) => void;
+			};
+			if (r.operation === "probe") {
+				r.reply({ version: 1, operation: "probe", available: true });
+			}
+			if (r.operation === "deliver") {
+				requests.push(r.names ?? []);
+				r.reply({
+					version: 1,
+					operation: "deliver",
+					outcomes: [{ name: "tdd", status: "already-resident" }],
+				});
+			}
+		});
+		await commands.get("answer:again")?.handler("", ctx);
+		assert.deepEqual(requests, [["tdd"]]);
+		assert.equal(sent, "Goal: Speed\nGoal note: Use /skill:tdd");
+		idle = false;
+		await commands.get("answer:again")?.handler("", ctx);
+		assert.deepEqual(requests, [["tdd"]]);
+		assert.equal(sent.split('<skill name="tdd"').length - 1, 1);
 	} finally {
 		remote.disposeAll();
 		configStore.setConfig(DEFAULT_ASK_CONFIG);

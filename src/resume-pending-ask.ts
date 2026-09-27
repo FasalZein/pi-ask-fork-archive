@@ -119,8 +119,11 @@ async function reopenPendingAsk(
 		return;
 	}
 
-	const text = successfulResponse(result, pi.getCommands(), pi.events)
-		.content[0].text;
+	const text = successfulResponse(
+		result,
+		pi.getCommands(),
+		ctx.isIdle() ? pi.events : undefined
+	).content[0].text;
 	pi.sendUserMessage(
 		text,
 		ctx.isIdle() ? undefined : { deliverAs: "followUp" }

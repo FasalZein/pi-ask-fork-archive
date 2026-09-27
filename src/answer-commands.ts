@@ -346,7 +346,11 @@ function sendAskResult(
 	result: AskResult,
 	ctx: Pick<ExtensionContext, "isIdle">
 ): void {
-	const response = successfulResponse(result, pi.getCommands(), pi.events);
+	const response = successfulResponse(
+		result,
+		pi.getCommands(),
+		ctx.isIdle() ? pi.events : undefined
+	);
 	const text = response.content[0];
 	pi.sendUserMessage(
 		text.text,
