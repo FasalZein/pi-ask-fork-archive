@@ -7,7 +7,7 @@ pi-ask is a pi extension that lets the agent stop and ask the user structured qu
 ### Project
 
 **Upstream**:
-The project this fork came from, `eko24ive/pi-ask`, published as `@eko24ive/pi-ask`.
+The project pi-ask started from, `eko24ive/pi-ask`, published as `@eko24ive/pi-ask`.
 _Avoid_: original, parent
 
 ### The ask
