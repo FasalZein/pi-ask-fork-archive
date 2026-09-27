@@ -122,7 +122,7 @@ export function createAskAutocompleteProvider(
 		getSuggestions(lines, cursorLine, cursorCol, options) {
 			const before = (lines[cursorLine] ?? "").slice(0, cursorCol);
 			const token = SKILL_COMPLETION_PREFIX.exec(before)?.[2];
-			if (token) {
+			if (token && !(options.force && !token.startsWith("/skill:"))) {
 				return getSkillSuggestions(
 					token,
 					skillProvider,
@@ -133,7 +133,12 @@ export function createAskAutocompleteProvider(
 			return fileProvider.getSuggestions(lines, cursorLine, cursorCol, options);
 		},
 		applyCompletion(lines, cursorLine, cursorCol, item, prefix) {
-			if (!SKILL_COMPLETION_PREFIX.test(prefix)) {
+			if (
+				!(
+					SKILL_COMPLETION_PREFIX.test(prefix) &&
+					item.value.startsWith("skill:")
+				)
+			) {
 				return fileProvider.applyCompletion(
 					lines,
 					cursorLine,

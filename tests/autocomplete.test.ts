@@ -4,6 +4,9 @@ import { createEventBus } from "@earendil-works/pi-coding-agent";
 import { createAskAutocompleteProvider } from "../src/ui/autocomplete.ts";
 
 const SKILL_MENU_ITEM = /skill:tdd/;
+const BRAINSTORM_MENU_ITEM = /skill:brainstorm/;
+const USER_STORY_MENU_ITEM = /skill:user-story/;
+const VOLUMES_PATH = /^see \/Volumes\/$/;
 const skills = [
 	{
 		name: "skill:tdd",
@@ -171,7 +174,7 @@ test("better-skills ranking is used when available; absent API retains pi rankin
 	);
 });
 
-test("skill menu opens after prose and on a later line in the embedded editor", async () => {
+async function createEditor(commands = skills) {
 	const { SkillReferenceEditor } = await import(
 		"../src/ui/skill-reference-editor.ts"
 	);
@@ -195,19 +198,95 @@ test("skill menu opens after prose and on a later line in the embedded editor", 
 		}
 	);
 	editor.setAutocompleteProvider(
-		createAskAutocompleteProvider(process.cwd(), [
-			{
-				name: "skill:tdd",
-				source: "skill",
-				sourceInfo: {
-					path: "/skills/tdd/SKILL.md",
-					source: "test",
-					scope: "user",
-					origin: "top-level",
-				},
-			},
-		])
+		createAskAutocompleteProvider(process.cwd(), commands)
 	);
+	return editor;
+}
+
+const waitForMenu = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+test("Enter submits literal slash text while the skill list is open", async () => {
+	for (const [text, skill] of [
+		["/tmp", "tmp"],
+		["a /b", "brainstorm"],
+	]) {
+		const editor = await createEditor([
+			{ ...skills[0], name: `skill:${skill}` },
+		]);
+		let submitted: string | undefined;
+		editor.onSubmit = (value) => {
+			submitted = value;
+		};
+		for (const char of text) {
+			editor.handleInput(char);
+		}
+		await waitForMenu();
+		assert.match(editor.render(80).join("\n"), new RegExp(`skill:${skill}`));
+		editor.handleInput("\r");
+		assert.equal(submitted, text);
+	}
+});
+
+test("Tab accepts the highlighted skill, and falls back to paths without a skill match", async () => {
+	const editor = await createEditor([
+		{ ...skills[0], name: "skill:brainstorm" },
+	]);
+	for (const char of "a /b") {
+		editor.handleInput(char);
+	}
+	await waitForMenu();
+	assert.match(editor.render(80).join("\n"), BRAINSTORM_MENU_ITEM);
+	editor.handleInput("\t");
+	assert.equal(editor.getText(), "a /skill:brainstorm ");
+
+	editor.setText("see /Volu");
+	editor.handleInput("\t");
+	await waitForMenu();
+	assert.match(editor.getText(), VOLUMES_PATH);
+});
+
+test("see /us with an open skill list accepts its highlighted skill on Tab", async () => {
+	const editor = await createEditor([
+		{ ...skills[0], name: "skill:user-story" },
+	]);
+	for (const char of "see /us") {
+		editor.handleInput(char);
+	}
+	await waitForMenu();
+	assert.match(editor.render(80).join("\n"), USER_STORY_MENU_ITEM);
+	editor.handleInput("\t");
+	assert.equal(editor.getText(), "see /skill:user-story ");
+});
+
+test("forced Tab at see /us uses file paths when no skill menu is open", async () => {
+	const provider = createAskAutocompleteProvider(process.cwd(), [
+		{ ...skills[0], name: "skill:user-story" },
+	]);
+	const suggestions = await provider.getSuggestions(["see /us"], 0, 7, {
+		signal: new AbortController().signal,
+		force: true,
+	});
+	assert.ok(suggestions);
+	assert.equal(suggestions.prefix, "/us");
+	assert.ok(suggestions.items.every((item) => item.value.startsWith("/")));
+});
+
+test("typed /skill: retains its existing Enter completion", async () => {
+	const editor = await createEditor([{ ...skills[0], name: "skill:tmp" }]);
+	let submitted: string | undefined;
+	editor.onSubmit = (value) => {
+		submitted = value;
+	};
+	for (const char of "/skill:tm") {
+		editor.handleInput(char);
+	}
+	await waitForMenu();
+	editor.handleInput("\r");
+	assert.equal(submitted, "/skill:tmp");
+});
+
+test("skill menu opens after prose and on a later line in the embedded editor", async () => {
+	const editor = await createEditor([skills[0]]);
 	for (const initial of ["", "Use ", "First line\nUse "]) {
 		editor.setText(initial);
 		for (const char of "/") {

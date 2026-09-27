@@ -49,7 +49,7 @@ Once installed, this package gives the agent a native way to ask for clarificati
 - 🧭 Familiar ask-style interface: tabbed questions, single/multi select, and preview mode
 - ⭐ Optional warning-colored `(recommended)` markers that do not preselect answers
 - ✍️ Inline free-form `Type your own` answers
-- 📎 Native pi-style `@` file references and `/skill:` completion inside answer and note editors
+- 📎 Native pi-style `@` file references and `/` skill completion inside answer and note editors
 - 📝 Question-level and option-level notes
 - 👀 Review tab with `Submit`, `Elaborate`, and `Cancel`
 - 💬 Elaboration flow to capture note-based clarification before final submission
@@ -66,7 +66,7 @@ Once installed, this package gives the agent a native way to ask for clarificati
 ## Feature walkthrough
 
 ### Native `@` file references
-Use pi-style `@` file path autocomplete inside free-form answers and note editors. Type `/skill:` anywhere in a custom answer or note to complete a skill loaded by pi. On Submit or Elaborate, a known skill reference adds a `SKILL.md` path to the model-facing result, so the agent can read it. The skill body is not inserted. Unknown skill references stay as typed. This also applies to `/answer` and recovered asks.
+Use pi-style `@` file path autocomplete inside free-form answers and note editors. Type `/` at the start of text or after a space to list skills loaded by pi. Arrow keys move the highlight; Tab inserts `/skill:<name> `. With a bare slash token, Enter submits or saves the text exactly as typed without selecting a skill. Typing `/skill:` still completes skills, including its existing Enter behavior. When pi-better-skills is available, its ranking orders the list. On Submit or Elaborate, a known skill reference adds a `SKILL.md` path to the model-facing result, so the agent can read it. The skill body is not inserted. Unknown skill references stay as typed. This also applies to `/answer` and recovered asks.
 
 ![Native pi-style @ file references inside the ask flow](docs/media/feature-at-file-mentions.png)
 
