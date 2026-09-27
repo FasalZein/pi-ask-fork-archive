@@ -7,7 +7,7 @@ import {
 	enterInputMode,
 	enterQuestionNoteMode,
 } from "../src/state/transitions.ts";
-import { renderAskScreen } from "../src/ui/render.ts";
+import { type AskViewport, renderAskScreen } from "../src/ui/render.ts";
 
 function mockEditor() {
 	return {
@@ -482,4 +482,100 @@ test("footer is one line at 100 and 80 columns in every context", () => {
 			);
 		}
 	}
+});
+
+function previewScreen(
+	width: number,
+	rows: number | undefined,
+	preview: string
+) {
+	const state = createInitialState({
+		questions: [
+			{
+				id: "q1",
+				prompt: "Choose a plan",
+				type: "preview",
+				options: [{ value: "a", label: "Plan A", preview }],
+			},
+		],
+	});
+	const viewport: AskViewport | undefined =
+		rows === undefined
+			? undefined
+			: {
+					rows,
+					bodyRows: 0,
+					optionStarts: [],
+					reviewPageRows: 0,
+					reviewScrollTop: 0,
+					scrollTop: 0,
+				};
+	const lines = renderAskScreen({
+		config: DEFAULT_ASK_CONFIG,
+		state,
+		theme: plainTheme(),
+		width,
+		editor: mockEditor(),
+		viewport,
+	});
+	const box = viewport?.mousePreview;
+	return { lines, boxRows: box ? box.end - box.start : undefined };
+}
+
+for (const [layout, width, freeRows] of [
+	["wide", 100, 22],
+	["stacked", 50, 18],
+] as const) {
+	test(`${layout} tall preview shows all 40 lines without scroll hint`, () => {
+		const { lines, boxRows } = previewScreen(
+			width,
+			70,
+			Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join("\n")
+		);
+		assert.equal(boxRows, 44);
+		assert(lines.some((line) => line.includes("line 40")));
+		assert(!lines.some((line) => line.includes("above · ↓")));
+	});
+
+	test(`${layout} short preview does not pad to the terminal height`, () => {
+		const { lines, boxRows } = previewScreen(width, 70, "one line");
+		assert.equal(boxRows, 5);
+		assert(lines.some((line) => line.includes("one line")));
+	});
+
+	test(`${layout} overflowing preview fills free rows and scrolls`, () => {
+		const { lines, boxRows } = previewScreen(
+			width,
+			30,
+			Array.from({ length: 100 }, (_, i) => `line ${i + 1}`).join("\n")
+		);
+		assert.equal(boxRows, freeRows);
+		assert(
+			lines.some(
+				(line) => line.includes("↑ 0 above · ↓") && line.includes("more")
+			)
+		);
+		assert(lines.some((line) => line.includes("Plan A")));
+		assert(lines.some((line) => line.includes("Type your own")));
+		assert.equal(lines.length, 30);
+	});
+
+	test(`${layout} short terminal retains preview minimum`, () => {
+		const { boxRows } = previewScreen(
+			width,
+			15,
+			Array.from({ length: 100 }, (_, i) => `line ${i + 1}`).join("\n")
+		);
+		assert.equal(boxRows, layout === "wide" ? 7 : 6);
+	});
+}
+
+test("preview without viewport retains the 14-row fallback", () => {
+	const { lines } = previewScreen(
+		100,
+		undefined,
+		Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join("\n")
+	);
+	assert.equal(lines.filter((line) => line.includes("│")).length, 12);
+	assert(lines.some((line) => line.includes("above · ↓")));
 });
