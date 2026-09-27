@@ -1,13 +1,93 @@
 import { accessSync, constants as fsConstants } from "node:fs";
 import { delimiter, join } from "node:path";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
+	type AutocompleteItem,
 	type AutocompleteProvider,
 	CombinedAutocompleteProvider,
 } from "@earendil-works/pi-tui";
 import { getSkillCommands, type SkillCommands } from "../skill-references.ts";
 
-export const SKILL_COMPLETION_PREFIX = /(^|\s)(\/skill:[a-zA-Z0-9._-]*)$/;
+export const SKILL_COMPLETION_PREFIX = /(^|\s)(\/(?:skill:)?[a-zA-Z0-9._-]*)$/;
 const WHITESPACE_START = /^\s/;
+const SKILL_API_CHANNEL = "pi-better-skills/v1/request";
+type SkillEvents = Pick<ExtensionAPI["events"], "emit">;
+let skillEvents: SkillEvents | undefined;
+
+export function setSkillAutocompleteEvents(events: SkillEvents): void {
+	skillEvents = events;
+}
+
+function isSuggestionReply(value: unknown): value is {
+	version: 1;
+	operation: "suggest";
+	items: AutocompleteItem[];
+} {
+	if (!value || typeof value !== "object") {
+		return false;
+	}
+	if (
+		!("version" in value) ||
+		value.version !== 1 ||
+		!("operation" in value) ||
+		value.operation !== "suggest" ||
+		!("items" in value) ||
+		!Array.isArray(value.items)
+	) {
+		return false;
+	}
+	return value.items.every(
+		(item: unknown) =>
+			item !== null &&
+			typeof item === "object" &&
+			"value" in item &&
+			typeof item.value === "string" &&
+			item.value.startsWith("skill:") &&
+			"label" in item &&
+			typeof item.label === "string"
+	);
+}
+
+function hasSkillApi(events: SkillEvents | undefined): boolean {
+	let available = false;
+	events?.emit(SKILL_API_CHANNEL, {
+		version: 1,
+		operation: "probe",
+		reply: (value: unknown) => {
+			if (
+				value &&
+				typeof value === "object" &&
+				"version" in value &&
+				value.version === 1 &&
+				"operation" in value &&
+				value.operation === "probe" &&
+				"available" in value &&
+				value.available === true
+			) {
+				available = true;
+			}
+		},
+	});
+	return available;
+}
+
+function requestSkillSuggestions(
+	events: SkillEvents,
+	query: string
+): AutocompleteItem[] | undefined {
+	let items: AutocompleteItem[] | undefined;
+	events.emit(SKILL_API_CHANNEL, {
+		version: 1,
+		operation: "suggest",
+		query,
+		reply: (value: unknown) => {
+			if (isSuggestionReply(value)) {
+				items = value.items;
+			}
+		},
+	});
+	return items;
+}
 
 const FD_BINARY_NAMES =
 	process.platform === "win32"
@@ -21,7 +101,8 @@ const FD_BINARY_NAMES =
  */
 export function createAskAutocompleteProvider(
 	cwd: string,
-	commands: SkillCommands = []
+	commands: SkillCommands = [],
+	events: SkillEvents | undefined = skillEvents
 ): AutocompleteProvider {
 	const fileProvider = new CombinedAutocompleteProvider(
 		[],
@@ -35,24 +116,24 @@ export function createAskAutocompleteProvider(
 		})),
 		cwd
 	);
+	const useSkillApi = hasSkillApi(events);
 	return {
 		triggerCharacters: ["@"],
-		async getSuggestions(lines, cursorLine, cursorCol, options) {
+		getSuggestions(lines, cursorLine, cursorCol, options) {
 			const before = (lines[cursorLine] ?? "").slice(0, cursorCol);
 			const token = SKILL_COMPLETION_PREFIX.exec(before)?.[2];
 			if (token) {
-				const suggestions = await skillProvider.getSuggestions(
-					[token],
-					0,
-					token.length,
-					{ ...options, force: false }
+				return getSkillSuggestions(
+					token,
+					skillProvider,
+					options.signal,
+					useSkillApi ? events : undefined
 				);
-				return suggestions ? { ...suggestions, prefix: token } : null;
 			}
 			return fileProvider.getSuggestions(lines, cursorLine, cursorCol, options);
 		},
 		applyCompletion(lines, cursorLine, cursorCol, item, prefix) {
-			if (!prefix.startsWith("/skill:")) {
+			if (!SKILL_COMPLETION_PREFIX.test(prefix)) {
 				return fileProvider.applyCompletion(
 					lines,
 					cursorLine,
@@ -76,6 +157,25 @@ export function createAskAutocompleteProvider(
 		shouldTriggerFileCompletion: (lines, line, col) =>
 			fileProvider.shouldTriggerFileCompletion(lines, line, col),
 	};
+}
+
+async function getSkillSuggestions(
+	token: string,
+	provider: CombinedAutocompleteProvider,
+	signal: AbortSignal,
+	events: SkillEvents | undefined
+) {
+	if (events) {
+		const items = requestSkillSuggestions(events, token.slice(1));
+		if (items) {
+			return items.length > 0 ? { items, prefix: token } : null;
+		}
+	}
+	const suggestions = await provider.getSuggestions([token], 0, token.length, {
+		signal,
+		force: false,
+	});
+	return suggestions ? { ...suggestions, prefix: token } : null;
 }
 
 function findAutocompleteBinary(binaryNames: readonly string[]): string | null {

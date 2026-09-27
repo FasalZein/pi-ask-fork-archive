@@ -15,9 +15,11 @@ import { PI_ASK_CONFIG_PROMPT } from "./prompt-text.ts";
 import { registerRecoveryContext } from "./recovery-context.ts";
 import { createRemoteAskRuntime } from "./remote-ask.ts";
 import { registerPendingAskResume } from "./resume-pending-ask.ts";
+import { setSkillAutocompleteEvents } from "./ui/autocomplete.ts";
 
 export default async function askExtension(pi: ExtensionAPI) {
 	resetAskConfigStore();
+	setSkillAutocompleteEvents(pi.events);
 	pi.on("before_agent_start", (event, ctx) => {
 		if (
 			matchesConfigPrompt(event.prompt) &&

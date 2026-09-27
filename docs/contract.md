@@ -222,7 +222,7 @@ While the TUI or RPC ask flow is open, `ask_user` sends a tool update after each
 - active question type changes via configurable `main.changeQuestionType` hotkey, default `t`; non-preview questions toggle `single <-> multi`; preview questions toggle `preview <-> multi`
 - inline free-form answers for all question types
 - native pi-style `@` file path autocomplete inside free-form answer and note editors
-- `/skill:` completion in custom-answer and note editors (including notes used for Elaborate) lists skills loaded by pi, including skills provided by other extensions; it works after prose and on later lines
+- typing `/` at the start of text or after whitespace in custom-answer and note editors (including notes used for Elaborate) lists skills loaded by pi, including skills provided by other extensions; it works after prose and on later lines, but not inside a word. Selecting a skill inserts `/skill:<name> `. When pi-better-skills provides shared autocomplete, its skill ranking is used; otherwise pi's registered skill command ranking applies. Other slash commands are not listed.
 - submitted and elaborated results retain typed `/skill:name` tokens in the recorded answer or note; each distinct known skill referenced there adds its `SKILL.md` path to model-facing content and to `details.resolvedSkills`, without inlining the skill body; unknown tokens add no path and results without known tokens do not change
 - question notes via `Shift+N`
 - option notes via `n`
@@ -275,7 +275,7 @@ Editing flow:
 - `global.settings` opens ask settings when the editor is empty; otherwise the key is delegated to the editor as text/input
 - when editor has text, arrow keys and `Tab` stay in the editor so the cursor can move while typing
 - when editor is empty, editor-context `*WhenEmpty` navigation actions move options or tabs without requiring the editor close binding first
-- `@` remains a fixed file-reference affordance in editors; `/skill:` opens pi skill completion
+- `@` remains a fixed file-reference affordance in editors; `/` at the start of text or after whitespace opens pi skill completion
 
 Settings modal:
 
