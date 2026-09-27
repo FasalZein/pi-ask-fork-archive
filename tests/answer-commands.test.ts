@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { dirname } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { registerAnswerCommands } from "../src/answer-commands.ts";
 
 function registerCommands() {
@@ -46,7 +48,7 @@ test("answer commands do not open custom UI outside TUI mode", async () => {
 	]);
 });
 
-test("/answer replay delivers the same skill pointer in its user message", async () => {
+test("/answer replay loads the skill in its user message", async () => {
 	const { DEFAULT_ASK_CONFIG } = await import("../src/config/defaults.ts");
 	const { getAskConfigStore } = await import("../src/config/store.ts");
 	const { createRemoteAskRuntime, PI_ASK_STARTED_EVENT, PI_ASK_SUBMIT_EVENT } =
@@ -95,7 +97,9 @@ test("/answer replay delivers the same skill pointer in its user message", async
 						name: "skill:tdd",
 						source: "skill",
 						sourceInfo: {
-							path: "/skills/tdd/SKILL.md",
+							path: fileURLToPath(
+								new URL("./fixtures/skill/SKILL.md", import.meta.url)
+							),
 							source: "test",
 							scope: "user",
 							origin: "top-level",
@@ -181,7 +185,7 @@ test("/answer replay delivers the same skill pointer in its user message", async
 		await commands.get("answer:again")?.handler("", ctx);
 		assert.equal(
 			sent,
-			"Goal: Speed\nGoal note: Use /skill:tdd\nRead skill /skill:tdd: /skills/tdd/SKILL.md"
+			`Goal: Speed\nGoal note: Use /skill:tdd\n\n<skill name="tdd" location="${fileURLToPath(new URL("./fixtures/skill/SKILL.md", import.meta.url))}">\nReferences are relative to ${dirname(fileURLToPath(new URL("./fixtures/skill/SKILL.md", import.meta.url)))}.\n\n# Test first\nStart with a failing test.\n</skill>`
 		);
 	} finally {
 		remote.disposeAll();

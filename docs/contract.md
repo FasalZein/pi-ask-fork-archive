@@ -223,7 +223,7 @@ While the TUI or RPC ask flow is open, `ask_user` sends a tool update after each
 - inline free-form answers for all question types
 - native pi-style `@` file path autocomplete inside free-form answer and note editors
 - `/skill:` completion in custom-answer and note editors (including notes used for Elaborate) lists skills loaded by pi, including skills provided by other extensions; it works after prose and on later lines
-- submitted and elaborated results retain typed `/skill:name` tokens in the recorded answer or note; each distinct known skill referenced there adds its `SKILL.md` path to model-facing content and to `details.resolvedSkills`, without inlining the skill body; unknown tokens add no path and results without known tokens do not change
+- submitted and elaborated results retain typed `/skill:name` tokens in the recorded answer or note; each distinct known skill is recorded in `details.resolvedSkills` and loaded after the ask result. When pi-better-skills is present, its delivery API queues the skill unless it is already resident in the session. Otherwise, pi-ask appends pi’s skill block to the model-facing result (or the command/recovery answer message). Unknown tokens are ignored; results without known tokens do not change
 - question notes via `Shift+N`
 - option notes via `n`
 - number-key quick selection

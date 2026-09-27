@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { createEventBus } from "@earendil-works/pi-coding-agent";
 import { successfulResponse } from "../src/ask-tool-helpers.ts";
 import type { AskResult } from "../src/types.ts";
+
+const skillPath = fileURLToPath(
+	new URL("./fixtures/skill/SKILL.md", import.meta.url)
+);
 
 const commands = [
 	{
 		name: "skill:tdd",
 		source: "skill",
 		description: "Test first",
-		sourceInfo: { path: "/skills/tdd/SKILL.md" },
+		sourceInfo: { path: skillPath },
 	},
 	{
 		name: "skill:review",
@@ -39,26 +45,21 @@ function submitted(note: string, customText = ""): AskResult {
 	};
 }
 
-test("submitted notes and custom answers add one pointer per distinct known skill", () => {
+const skillBlock = `<skill name="tdd" location="${skillPath}">\nReferences are relative to ${fileURLToPath(new URL("./fixtures/skill/", import.meta.url)).replace(/\/$/, "")}.\n\n# Test first\nStart with a failing test.\n</skill>`;
+
+test("submitted notes and custom answers load each known skill once", () => {
 	const result = submitted(
-		"Use /skill:tdd then /skill:review and /skill:tdd",
-		"Follow /skill:review"
+		"Use /skill:tdd then /skill:tdd",
+		"Follow /skill:tdd"
 	);
-	assert.deepEqual(successfulResponse(result, commands), {
-		content: [
-			{
-				type: "text",
-				text: "Goal: Follow /skill:review\nGoal note: Use /skill:tdd then /skill:review and /skill:tdd\nRead skill /skill:review: /skills/review/SKILL.md\nRead skill /skill:tdd: /skills/tdd/SKILL.md",
-			},
-		],
-		details: {
-			...result,
-			resolvedSkills: [
-				{ name: "review", path: "/skills/review/SKILL.md" },
-				{ name: "tdd", path: "/skills/tdd/SKILL.md" },
-			],
-		},
-	});
+	const response = successfulResponse(result, commands, createEventBus());
+	assert.equal(
+		response.content[0].text,
+		`Goal: Follow /skill:tdd\nGoal note: Use /skill:tdd then /skill:tdd\n\n${skillBlock}`
+	);
+	assert.deepEqual(response.details.resolvedSkills, [
+		{ name: "tdd", path: skillPath },
+	]);
 });
 
 test("unknown and non-skill tokens leave the result byte-identical", () => {
@@ -83,7 +84,7 @@ test("sentence punctuation does not hide a known skill", () => {
 	);
 	assert.equal(
 		response.content[0].text,
-		"Goal: Speed\nGoal note: Use /skill:tdd. Then compare.\nRead skill /skill:tdd: /skills/tdd/SKILL.md"
+		`Goal: Speed\nGoal note: Use /skill:tdd. Then compare.\n\n${skillBlock}`
 	);
 });
 
@@ -113,13 +114,58 @@ test("elaboration notes add skill paths without altering the recorded note", () 
 	const response = successfulResponse(result, commands);
 	assert.equal(
 		response.content[0].text,
-		'User asked to elaborate on question "Choose" with note "Explain /skill:tdd"\nFirst answer the user\'s note directly using the question and option context; re-ask only the affected question if a choice is still needed.\nRead skill /skill:tdd: /skills/tdd/SKILL.md'
+		`User asked to elaborate on question "Choose" with note "Explain /skill:tdd"\nFirst answer the user's note directly using the question and option context; re-ask only the affected question if a choice is still needed.\n\n${skillBlock}`
 	);
 	assert.deepEqual(response.details.resolvedSkills, [
-		{ name: "tdd", path: "/skills/tdd/SKILL.md" },
+		{ name: "tdd", path: skillPath },
 	]);
 	assert.equal(
 		response.details.elaboration?.items[0].note,
 		"Explain /skill:tdd"
 	);
+});
+
+for (const status of ["delivered", "already-resident"] as const) {
+	test(`provider ${status} does not inject a second body`, () => {
+		const events = createEventBus();
+		const deliveries: string[][] = [];
+		events.on("pi-better-skills/v1/request", (request: unknown) => {
+			const r = request as {
+				operation: string;
+				names?: string[];
+				reply: (value: unknown) => void;
+			};
+			if (r.operation === "probe") {
+				r.reply({ version: 1, operation: "probe", available: true });
+			}
+			if (r.operation === "deliver") {
+				deliveries.push(r.names ?? []);
+				r.reply({
+					version: 1,
+					operation: "deliver",
+					outcomes: [{ name: "tdd", status }],
+				});
+			}
+		});
+		const response = successfulResponse(
+			submitted("Use /skill:tdd"),
+			commands,
+			events
+		);
+		assert.deepEqual(deliveries, [["tdd"]]);
+		assert.equal(
+			response.content[0].text,
+			"Goal: Speed\nGoal note: Use /skill:tdd"
+		);
+	});
+}
+
+test("no skill token sends no delivery request", () => {
+	const events = createEventBus();
+	let count = 0;
+	events.on("pi-better-skills/v1/request", () => {
+		count++;
+	});
+	successfulResponse(submitted("No reference"), commands, events);
+	assert.equal(count, 0);
 });

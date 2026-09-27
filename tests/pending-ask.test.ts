@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { findLatestPayloadInCurrentBranch } from "../src/ask-payload-store.ts";
 import { DEFAULT_ASK_CONFIG } from "../src/config/defaults.ts";
 import { getAskConfigStore } from "../src/config/store.ts";
@@ -20,7 +21,8 @@ import { registerPendingAskResume } from "../src/resume-pending-ask.ts";
 import type { AskParams } from "../src/types.ts";
 
 const CANVAS_RE = /Canvas/;
-const SKILL_POINTER_RE = /Read skill \/skill:tdd: \/skills\/tdd\/SKILL\.md/;
+const SKILL_BLOCK_RE =
+	/<skill name="tdd" location="[^"]+">\nReferences are relative to [^\n]+\n\n# Test first\nStart with a failing test\.\n<\/skill>/;
 
 const params: AskParams = {
 	title: "Choose engine",
@@ -434,7 +436,9 @@ test("resumed submit persists dismissal, delivers an answer, and emits remote li
 				name: "skill:tdd",
 				source: "skill",
 				sourceInfo: {
-					path: "/skills/tdd/SKILL.md",
+					path: fileURLToPath(
+						new URL("./fixtures/skill/SKILL.md", import.meta.url)
+					),
 					source: "test",
 					scope: "user",
 					origin: "top-level",
@@ -470,7 +474,7 @@ test("resumed submit persists dismissal, delivers an answer, and emits remote li
 	]);
 	assert.equal(delivered.length, 1);
 	assert.match(delivered[0].text, CANVAS_RE);
-	assert.match(delivered[0].text, SKILL_POINTER_RE);
+	assert.match(delivered[0].text, SKILL_BLOCK_RE);
 	assert.deepEqual(delivered[0].options, { deliverAs: "followUp" });
 
 	const started = findEvent<RemoteAskStartedEvent>(bus, PI_ASK_STARTED_EVENT);
