@@ -14,6 +14,9 @@ export const UI_DIMENSIONS = {
 } as const;
 
 export const UI_TEXT = {
+	// One focus pointer for option rows and review actions; unfocused rows pad to the same width.
+	cursor: " ▶ ",
+	cursorBlank: "   ",
 	recommendedMarker: "(recommended)",
 	questionNoteTitle: "Note:",
 	reviewTitle: "Review answers",

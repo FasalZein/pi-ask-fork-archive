@@ -1,13 +1,17 @@
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { AskConfig } from "../config/schema.ts";
 import {
+	type FooterHint,
+	type FooterKeymapContext,
+	getFooterHints,
+} from "../constants/keymaps.ts";
+import {
 	getCurrentQuestion,
 	isQuestionAnswered,
 	isSubmitTab,
 } from "../state/selectors.ts";
 import { wrapText } from "../text.ts";
 import type { AskState } from "../types.ts";
-import { renderFooterText } from "./render-helpers.ts";
 import type { Theme } from "./render-types.ts";
 
 export function renderFrameHeader(args: {
@@ -191,21 +195,40 @@ function renderFooter(
 	if (!config.behaviour.showFooterHints) {
 		return [];
 	}
-	let footer: string;
+	let context: FooterKeymapContext;
 	if (state.view.kind === "input") {
-		footer = renderFooterText(config, "input");
+		context = "input";
 	} else if (state.view.kind === "note") {
-		footer = renderFooterText(config, "note");
+		context = "note";
 	} else if (isSubmitTab(state)) {
-		footer = renderFooterText(config, "submit");
+		context = "submit";
 	} else {
-		const question = getCurrentQuestion(state);
-		footer = renderFooterText(
-			config,
-			question?.type === "multi" ? "multi" : "default"
-		);
+		context = getCurrentQuestion(state)?.type === "multi" ? "multi" : "default";
 	}
-	return wrapDelimitedFooterHints(footer, width);
+	return wrapDelimitedFooterHints(
+		fitFooterHints(getFooterHints(config, context), width),
+		width
+	);
+}
+
+/** Drop the least useful hints until the footer fits one line; essential hints always stay. */
+function fitFooterHints(hints: readonly FooterHint[], width: number): string {
+	const kept = [...hints];
+	const render = () => ` ${kept.map((hint) => hint.text).join(" · ")}`;
+	while (visibleWidth(render()) > width) {
+		let dropIndex = -1;
+		for (const [index, hint] of kept.entries()) {
+			const current = kept[dropIndex]?.dropRank ?? Number.POSITIVE_INFINITY;
+			if (hint.dropRank !== undefined && hint.dropRank < current) {
+				dropIndex = index;
+			}
+		}
+		if (dropIndex < 0) {
+			break;
+		}
+		kept.splice(dropIndex, 1);
+	}
+	return render();
 }
 
 function wrapDelimitedFooterHints(footer: string, width: number): string[] {

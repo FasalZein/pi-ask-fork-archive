@@ -1,6 +1,6 @@
 import { visibleWidth } from "@earendil-works/pi-tui";
 import { SUBMIT_CHOICES } from "../../constants/text.ts";
-import { UI_DIMENSIONS } from "../../constants/ui.ts";
+import { UI_DIMENSIONS, UI_TEXT } from "../../constants/ui.ts";
 import { isCustomOnlyAnswer } from "../../state/answers.ts";
 import {
 	type ReviewAnswer,
@@ -84,7 +84,7 @@ function toReviewQuestionModel(
 function getSubmitActionColumnWidth(): number {
 	return Math.max(
 		...SUBMIT_CHOICES.map((choice, index) =>
-			visibleWidth(`❯ ${index + 1}. ${choice}`)
+			visibleWidth(`${UI_TEXT.cursor}${index + 1}. ${choice}`)
 		)
 	);
 }

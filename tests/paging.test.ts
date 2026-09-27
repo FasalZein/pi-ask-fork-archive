@@ -51,7 +51,7 @@ test("18-row ask keeps framing and focused option, with counts for hidden option
 	assert.ok(initial[3]?.includes("Review"));
 	assert.ok(initial.at(-2)?.includes("settings"));
 	assert.ok(initial.at(-1)?.includes("─"));
-	assert.ok(initial.join("\n").includes("↓ 12 more options below"));
+	assert.ok(initial.join("\n").includes("↓ 11 more options below"));
 	for (let index = 0; index < 11; index++) {
 		state = moveOption(state, 1);
 	}
@@ -65,7 +65,7 @@ test("18-row ask keeps framing and focused option, with counts for hidden option
 	});
 	assert.equal(lines.length, 18);
 	assert.ok(lines.join("\n").includes("▶ 12. Option 12"));
-	assert.ok(lines.join("\n").includes("↑ 7 more options above"));
+	assert.ok(lines.join("\n").includes("↑ 6 more options above"));
 	assert.ok(lines.join("\n").includes("↓ 5 more options below"));
 	assert.ok(lines.at(-2)?.includes("settings"));
 });
@@ -135,7 +135,7 @@ test("review body stays within 18 rows while its selected action stays visible",
 		viewport,
 	});
 	assert.equal(lines.length, 18);
-	assert.ok(lines.join("\n").includes("❯ 1. Submit"));
+	assert.ok(lines.join("\n").includes(" ▶ 1. Submit"));
 	assert.match(lines.join("\n"), BELOW_ANSWERS);
 	assert.ok(lines.at(-2)?.includes("settings"));
 });
@@ -178,7 +178,7 @@ test("review page shows later answers without losing the focused action", () => 
 	});
 	assert.equal(later.length, 18);
 	assert.ok(later.join("\n").includes("Q12"));
-	assert.ok(later.join("\n").includes("❯ 1. Submit"));
+	assert.ok(later.join("\n").includes(" ▶ 1. Submit"));
 	assert.ok(later.join("\n").includes("more above"));
 });
 
@@ -219,7 +219,7 @@ test("stacked review keeps focused actions visible while its answers scroll", ()
 	});
 	assert.equal(lines.length, 18);
 	assert.ok(lines.some((line) => line.includes(" Q12")));
-	assert.ok(lines.join("\n").includes("❯ 1. Submit"));
+	assert.ok(lines.join("\n").includes(" ▶ 1. Submit"));
 	assert.ok(lines.join("\n").includes("more above"));
 	assert.ok(lines.at(-2)?.includes("settings"));
 });
@@ -309,7 +309,8 @@ test("flow component pages by visible row height and accepts pi move aliases wit
 	assert.ok(component.render(80).join("\n").includes("▶ 2. Option 2"));
 	component.handleInput("\n");
 	const page = component.render(80).join("\n");
-	assert.ok(page.includes("▶ 7. Option 7"));
+	// The one-line footer leaves one more visible option row, so the page lands one option later.
+	assert.ok(page.includes("▶ 8. Option 8"));
 	assert.match(page, ABOVE_OPTIONS);
 	assert.ok(page.includes("Ctrl+J"));
 	component.handleInput("k");
@@ -450,14 +451,14 @@ test("review page key scrolls answers but leaves Submit visible", async () => {
 		component.handleInput("\t");
 	}
 	let lines = component.render(80);
-	assert.ok(lines.join("\n").includes("❯ 1. Submit"));
+	assert.ok(lines.join("\n").includes(" ▶ 1. Submit"));
 	for (let index = 0; index < 20; index++) {
 		component.handleInput("\x1b[6~");
 	}
 	lines = component.render(80);
 	assert.equal(lines.length, 18);
 	assert.ok(lines.some((line) => line.includes(" Q12")));
-	assert.ok(lines.join("\n").includes("❯ 1. Submit"));
+	assert.ok(lines.join("\n").includes(" ▶ 1. Submit"));
 	assert.ok(lines.join("\n").includes("more above"));
 	component.handleInput("\u0003");
 	assert.equal((await flow).cancelled, true);

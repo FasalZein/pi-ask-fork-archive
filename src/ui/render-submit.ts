@@ -267,7 +267,7 @@ function renderSubmitActions(
 ): string[] {
 	const lines: string[] = [];
 	for (const [index, action] of model.actions.entries()) {
-		const prefix = action.selected ? "❯ " : "  ";
+		const prefix = action.selected ? UI_TEXT.cursor : UI_TEXT.cursorBlank;
 		pushWrappedText(
 			lines,
 			`${index + 1}. ${action.label}`,

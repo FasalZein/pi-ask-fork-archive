@@ -20,6 +20,9 @@ import {
 	type OptionRowModel,
 } from "./view-models/question.ts";
 
+// Option details (description, recommended line, notes, editors) start under the option label.
+const OPTION_SUBTITLE_INDENT = "      ";
+
 export function renderQuestionScreen(context: QuestionRenderContext) {
 	const { lines, question, theme, width } = context;
 	const model = buildQuestionScreenModel(context);
@@ -43,9 +46,7 @@ export function renderQuestionScreen(context: QuestionRenderContext) {
 			" "
 		);
 	}
-	if (question.type !== "multi" || model.questionNote) {
-		renderQuestionNote(lines, model.questionNote, context);
-	}
+	renderQuestionNote(lines, model.questionNote, context);
 
 	if (model.mode === "preview") {
 		renderPreviewQuestion(context, model);
@@ -274,7 +275,7 @@ function renderOptionDetail(
 	if (!detail) {
 		return;
 	}
-	const indent = options.indent ?? "     ";
+	const indent = options.indent ?? OPTION_SUBTITLE_INDENT;
 	const padding =
 		indent === " "
 			? UI_DIMENSIONS.editorContentPadding
@@ -364,8 +365,6 @@ function renderInteractiveCustomOption(
 		indent: row.isFreeformOnly ? " " : undefined,
 	});
 }
-
-const OPTION_SUBTITLE_INDENT = "      ";
 
 function renderOptionSubtitle(
 	lines: string[],

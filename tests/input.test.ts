@@ -504,11 +504,12 @@ test("review arrows move only between actions and number shortcuts keep action s
 		component.handleInput("\t");
 		component.handleInput("\t");
 		component.handleInput("\x1b[A");
-		assert(component.render(80).join("\n").includes("❯ 1. Submit"));
+		assert(component.render(80).join("\n").includes(" ▶ 1. Submit"));
 		component.handleInput("\x1b[B");
 		const review = component.render(80).join("\n");
-		assert(review.includes("❯ 2. Elaborate"));
-		assert(!review.includes("▶"));
+		assert(review.includes(" ▶ 2. Elaborate"));
+		// Only the focused action carries the pointer; question rows are not focusable here.
+		assert.equal(review.split("▶").length - 1, 1);
 		component.handleInput("2");
 		assert(
 			component.render(80).join("\n").includes("Press 2 again to Elaborate")

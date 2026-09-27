@@ -176,7 +176,7 @@ test("review wheel moves answers without moving action; no overflow passes throu
 	assert.deepEqual(wheel(component, 5, row, 3), { handled: true });
 	const scrolled = component.render(100).join("\n");
 	assert.ok(scrolled.includes("Q4"));
-	assert.ok(scrolled.includes("❯ 1. Submit"));
+	assert.ok(scrolled.includes(" ▶ 1. Submit"));
 	assert.equal(wheel(component, 5, 0, 1), undefined);
 	for (let i = 0; i < 30; i++) {
 		wheel(component, 5, row, 2);

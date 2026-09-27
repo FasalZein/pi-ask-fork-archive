@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DEFAULT_ASK_CONFIG } from "../src/config/defaults.ts";
 import { createInitialState } from "../src/state/create.ts";
-import { applyNumberShortcut } from "../src/state/transitions.ts";
+import {
+	applyNumberShortcut,
+	enterInputMode,
+	enterQuestionNoteMode,
+} from "../src/state/transitions.ts";
 import { renderAskScreen } from "../src/ui/render.ts";
 
 function mockEditor() {
@@ -282,7 +286,7 @@ test("only the active tab gets a filled background", () => {
 	assert.equal(review.join("\n").includes("of 2 answered"), false);
 });
 
-test("footer hints wrap into exact lines on narrow screens", () => {
+test("narrow footers drop optional hints and wrap only the essential ones", () => {
 	const state = createInitialState({
 		questions: [
 			{
@@ -303,17 +307,15 @@ test("footer hints wrap into exact lines on narrow screens", () => {
 		editor: mockEditor(),
 	});
 
-	assert.deepEqual(lines.slice(-7, -1), [
-		" ↑↓ move",
-		" Space/1-9 toggle",
-		" Tab question",
+	// Optional hints are dropped first; only the essential set wraps.
+	assert.deepEqual(lines.slice(-4, -1), [
 		" Enter continue",
-		" N/Shift+N note · T type",
+		" N/Shift+N note",
 		" Esc dismiss · ? settings",
 	]);
 });
 
-test("footer keeps earlier hint chunk on the first wrapped line", () => {
+test("very narrow footers keep every essential hint", () => {
 	const state = createInitialState({
 		questions: [
 			{
@@ -333,12 +335,10 @@ test("footer keeps earlier hint chunk on the first wrapped line", () => {
 		editor: mockEditor(),
 	});
 
-	assert.deepEqual(lines.slice(-7, -1), [
-		" ↑↓ move · 1-9 pick",
-		" Tab question",
+	assert.deepEqual(lines.slice(-5, -1), [
 		" Enter confirm",
 		" N/Shift+N note",
-		" T type · Esc dismiss",
+		" Esc dismiss",
 		" ? settings",
 	]);
 });
@@ -414,4 +414,73 @@ test("frame rules use pi's border token without recoloring the title", () => {
 	assert.ok(
 		calls.some(([color, text]) => color === "accent" && text.includes("Demo"))
 	);
+});
+
+function footerLine(
+	state: ReturnType<typeof createInitialState>,
+	width: number
+) {
+	const lines = renderAskScreen({
+		config: DEFAULT_ASK_CONFIG,
+		state,
+		theme: plainTheme(),
+		width,
+		editor: mockEditor(),
+	});
+	// The footer sits between the blank separator and the closing rule.
+	const rule = lines.length - 1;
+	const blank = lines.lastIndexOf("", rule);
+	return lines.slice(blank + 1, rule);
+}
+
+function footerState(type?: "multi") {
+	return createInitialState({
+		questions: [
+			{
+				id: "q1",
+				label: "One",
+				prompt: "One",
+				...(type ? { type } : {}),
+				options: [{ value: "a", label: "A" }],
+			},
+		],
+	});
+}
+
+test("footer keeps the full hint list when it fits one line", () => {
+	assert.deepEqual(footerLine(footerState(), 120), [
+		" ↑↓ move · 1-9 pick · Tab question · Enter confirm · N/Shift+N note · T type · Esc dismiss · ? settings",
+	]);
+});
+
+test("footer drops move, then pick, then type, then tab to stay on one line", () => {
+	assert.deepEqual(footerLine(footerState(), 100), [
+		" 1-9 pick · Tab question · Enter confirm · N/Shift+N note · T type · Esc dismiss · ? settings",
+	]);
+	assert.deepEqual(footerLine(footerState(), 90), [
+		" Tab question · Enter confirm · N/Shift+N note · T type · Esc dismiss · ? settings",
+	]);
+	assert.deepEqual(footerLine(footerState(), 80), [
+		" Tab question · Enter confirm · N/Shift+N note · Esc dismiss · ? settings",
+	]);
+	assert.deepEqual(footerLine(footerState(), 70), [
+		" Enter confirm · N/Shift+N note · Esc dismiss · ? settings",
+	]);
+});
+
+test("footer is one line at 100 and 80 columns in every context", () => {
+	const multi = footerState("multi");
+	let submit = footerState();
+	submit = { ...submit, activeTabIndex: 1, view: { kind: "submit" } };
+	const input = enterInputMode(footerState(), "q1");
+	const note = enterQuestionNoteMode(footerState(), "q1");
+	for (const state of [footerState(), multi, submit, input, note]) {
+		for (const width of [100, 80]) {
+			assert.equal(
+				footerLine(state, width).length,
+				1,
+				`${state.view.kind} at ${width}`
+			);
+		}
+	}
 });
