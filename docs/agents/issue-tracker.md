@@ -11,7 +11,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
 
-The repository is the fork `FasalZein/pi-ask`, not the upstream `eko24ive/pi-ask`. In a fork clone, `gh` can resolve to the parent repository. Run `gh repo set-default FasalZein/pi-ask` once per clone, or pass `-R FasalZein/pi-ask` on every command. Never create issues, labels, or PRs on `eko24ive/pi-ask` unless the user explicitly asks for an upstream report.
+The repository is the standalone repository `FasalZein/pi-ask`, not the upstream `eko24ive/pi-ask`. If a clone has more than one GitHub remote, run `gh repo set-default FasalZein/pi-ask` once, or pass `-R FasalZein/pi-ask` on every command. Never create issues, labels, or PRs on `eko24ive/pi-ask` unless the user explicitly asks for an upstream report.
 
 ## Pull requests as a triage surface
 
