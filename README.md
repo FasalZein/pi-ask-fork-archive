@@ -66,7 +66,7 @@ Once installed, this package gives the agent a native way to ask for clarificati
 ## Feature walkthrough
 
 ### Native `@` file references
-Use pi-style `@` file path autocomplete inside free-form answers and note editors. Type `/` at the start of text or after a space to list skills loaded by pi. Arrow keys move the highlight; Tab inserts `/skill:<name> `. With a bare slash token, Enter submits or saves the text exactly as typed without selecting a skill. Typing `/skill:` still completes skills, including its existing Enter behavior. When pi-better-skills is available, its ranking orders the list. On Submit or Elaborate, a known skill reference adds a `SKILL.md` path to the model-facing result, so the agent can read it. The skill body is not inserted. Unknown skill references stay as typed. This also applies to `/answer` and recovered asks.
+Use pi-style `@` file path autocomplete inside free-form answers and note editors. Type `/` at the start of text or after a space to list skills loaded by pi. Arrow keys move the highlight; Tab inserts `/skill:<name> `. Enter submits or saves literal text without selecting an automatically opened skill list, including a typed `/skill:` token. Enter still accepts file suggestions opened explicitly with Tab or through an `@` mention. When pi-better-skills is available, its ranking orders the list. On Submit or Elaborate, a known skill reference adds a `SKILL.md` path to the model-facing result, so the agent can read it. The skill body is not inserted. Unknown skill references stay as typed. This also applies to `/answer` and recovered asks.
 
 ![Native pi-style @ file references inside the ask flow](docs/media/feature-at-file-mentions.png)
 

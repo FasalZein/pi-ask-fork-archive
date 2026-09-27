@@ -130,7 +130,16 @@ export function createAskAutocompleteProvider(
 					useSkillApi ? events : undefined
 				);
 			}
-			return fileProvider.getSuggestions(lines, cursorLine, cursorCol, options);
+			// pi-tui refreshes an open menu after whitespace. The file provider
+			// treats that empty prefix as a request for cwd entries. Only @ mentions
+			// open file lists automatically; Tab can still force path completion.
+			return fileProvider
+				.getSuggestions(lines, cursorLine, cursorCol, options)
+				.then((suggestions) =>
+					options.force || suggestions?.prefix.startsWith("@")
+						? suggestions
+						: null
+				);
 		},
 		applyCompletion(lines, cursorLine, cursorCol, item, prefix) {
 			if (

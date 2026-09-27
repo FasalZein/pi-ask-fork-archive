@@ -7,6 +7,7 @@ const SKILL_MENU_ITEM = /skill:tdd/;
 const BRAINSTORM_MENU_ITEM = /skill:brainstorm/;
 const USER_STORY_MENU_ITEM = /skill:user-story/;
 const VOLUMES_PATH = /^see \/Volumes\/$/;
+const USERS_PATH = /^see \/(?:Users|usr)\/$/;
 const skills = [
 	{
 		name: "skill:tdd",
@@ -205,6 +206,18 @@ async function createEditor(commands = skills) {
 
 const waitForMenu = () => new Promise((resolve) => setTimeout(resolve, 20));
 
+async function waitForFileMenu(
+	editor: Awaited<ReturnType<typeof createEditor>>
+) {
+	for (let attempt = 0; attempt < 40; attempt++) {
+		if (editor.isShowingAutocomplete()) {
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 25));
+	}
+	assert.fail("File mention menu did not open");
+}
+
 test("Enter submits literal slash text while the skill list is open", async () => {
 	for (const [text, skill] of [
 		["/tmp", "tmp"],
@@ -225,6 +238,66 @@ test("Enter submits literal slash text while the skill list is open", async () =
 		editor.handleInput("\r");
 		assert.equal(submitted, text);
 	}
+});
+
+test("Enter submits a typed skill reference after trailing space, not a cwd suggestion", async () => {
+	const editor = await createEditor([skills[0]]);
+	let submitted: string | undefined;
+	editor.onSubmit = (value) => {
+		submitted = value;
+	};
+	for (const char of "red /skill:tdd ") {
+		editor.handleInput(char);
+	}
+	await waitForMenu();
+	assert.equal(editor.getText(), "red /skill:tdd ");
+	editor.handleInput("\r");
+	// pi-tui's normal submit removes trailing whitespace, not the skill reference.
+	assert.equal(submitted, "red /skill:tdd");
+});
+
+test("Enter cancels a stale skill list immediately after typing a trailing space", async () => {
+	const editor = await createEditor([skills[0]]);
+	let submitted: string | undefined;
+	editor.onSubmit = (value) => {
+		submitted = value;
+	};
+	for (const char of "red /skill:td") {
+		editor.handleInput(char);
+	}
+	await waitForMenu();
+	for (const char of "d ") {
+		editor.handleInput(char);
+	}
+	editor.handleInput("\r");
+	assert.equal(submitted, "red /skill:tdd");
+});
+
+test("Enter retains pi's file selection for an explicit Tab list and @ mention", async () => {
+	const editor = await createEditor([skills[0]]);
+	let submitted: string | undefined;
+	editor.onSubmit = (value) => {
+		submitted = value;
+	};
+	editor.setText("see /us");
+	editor.handleInput("\t");
+	await waitForMenu();
+	assert.ok(editor.isShowingAutocomplete());
+	editor.handleInput("\r");
+	assert.match(submitted ?? "", USERS_PATH);
+
+	const mentionEditor = await createEditor([skills[0]]);
+	let mentionSubmitted: string | undefined;
+	mentionEditor.onSubmit = (value) => {
+		mentionSubmitted = value;
+	};
+	for (const char of "see @package") {
+		mentionEditor.handleInput(char);
+	}
+	await waitForFileMenu(mentionEditor);
+	mentionEditor.handleInput("\r");
+	assert.equal(mentionSubmitted, undefined);
+	assert.notEqual(mentionEditor.getText(), "see @package");
 });
 
 test("Tab accepts the highlighted skill, and falls back to paths without a skill match", async () => {
@@ -271,7 +344,7 @@ test("forced Tab at see /us uses file paths when no skill menu is open", async (
 	assert.ok(suggestions.items.every((item) => item.value.startsWith("/")));
 });
 
-test("typed /skill: retains its existing Enter completion", async () => {
+test("Enter keeps a partially typed /skill: reference literal when its list is open", async () => {
 	const editor = await createEditor([{ ...skills[0], name: "skill:tmp" }]);
 	let submitted: string | undefined;
 	editor.onSubmit = (value) => {
@@ -282,7 +355,7 @@ test("typed /skill: retains its existing Enter completion", async () => {
 	}
 	await waitForMenu();
 	editor.handleInput("\r");
-	assert.equal(submitted, "/skill:tmp");
+	assert.equal(submitted, "/skill:tm");
 });
 
 test("skill menu opens after prose and on a later line in the embedded editor", async () => {
