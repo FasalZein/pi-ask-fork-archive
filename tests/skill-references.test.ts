@@ -136,14 +136,19 @@ for (const status of ["delivered", "already-resident"] as const) {
 	test(`provider ${status} does not inject a second body`, () => {
 		const events = createEventBus();
 		const deliveries: string[][] = [];
-		events.on("pi-better-skills/v1/request", (request: unknown) => {
+		events.on("pi-better-skills:request", (request: unknown) => {
 			const r = request as {
 				operation: string;
 				names?: string[];
 				reply: (value: unknown) => void;
 			};
 			if (r.operation === "probe") {
-				r.reply({ version: 1, operation: "probe", available: true });
+				r.reply({
+					version: 1,
+					operation: "probe",
+					available: true,
+					versions: [1],
+				});
 			}
 			if (r.operation === "deliver") {
 				deliveries.push(r.names ?? []);
@@ -170,7 +175,7 @@ for (const status of ["delivered", "already-resident"] as const) {
 test("no skill token sends no delivery request", () => {
 	const events = createEventBus();
 	let count = 0;
-	events.on("pi-better-skills/v1/request", () => {
+	events.on("pi-better-skills:request", () => {
 		count++;
 	});
 	successfulResponse(submitted("No reference"), commands, events);
@@ -199,13 +204,18 @@ test("missing skill file does not lose the submitted answer", () => {
 for (const outcomes of [[{ name: "tdd", status: "unknown" }], []] as const) {
 	test(`provider ${outcomes.length ? "unknown" : "missing"} outcome falls back to block`, () => {
 		const events = createEventBus();
-		events.on("pi-better-skills/v1/request", (request: unknown) => {
+		events.on("pi-better-skills:request", (request: unknown) => {
 			const r = request as {
 				operation: string;
 				reply: (value: unknown) => void;
 			};
 			if (r.operation === "probe") {
-				r.reply({ version: 1, operation: "probe", available: true });
+				r.reply({
+					version: 1,
+					operation: "probe",
+					available: true,
+					versions: [1],
+				});
 			}
 			if (r.operation === "deliver") {
 				r.reply({ version: 1, operation: "deliver", outcomes });
@@ -222,14 +232,19 @@ for (const outcomes of [[{ name: "tdd", status: "unknown" }], []] as const) {
 test("provider outcomes load only skills it could not deliver", () => {
 	const events = createEventBus();
 	const deliveries: string[][] = [];
-	events.on("pi-better-skills/v1/request", (request: unknown) => {
+	events.on("pi-better-skills:request", (request: unknown) => {
 		const r = request as {
 			operation: string;
 			names?: string[];
 			reply: (value: unknown) => void;
 		};
 		if (r.operation === "probe") {
-			r.reply({ version: 1, operation: "probe", available: true });
+			r.reply({
+				version: 1,
+				operation: "probe",
+				available: true,
+				versions: [1],
+			});
 		}
 		if (r.operation === "deliver") {
 			deliveries.push(r.names ?? []);
@@ -252,5 +267,39 @@ test("provider outcomes load only skills it could not deliver", () => {
 	assert.equal(
 		response.content[0].text,
 		`Goal: Speed\nGoal note: Use /skill:review and /skill:tdd\n\n${skillBlock}`
+	);
+});
+
+test("unsupported provider versions keep skill delivery in the result", () => {
+	const events = createEventBus();
+	let deliveries = 0;
+	let probes = 0;
+	events.on("pi-better-skills:request", (request: unknown) => {
+		const message = request as {
+			operation: string;
+			reply: (value: unknown) => void;
+		};
+		if (message.operation === "probe") {
+			probes++;
+			message.reply({
+				version: 1,
+				operation: "probe",
+				available: true,
+				versions: [2],
+			});
+		} else if (message.operation === "deliver") {
+			deliveries++;
+		}
+	});
+	const response = successfulResponse(
+		submitted("Use /skill:tdd"),
+		commands,
+		events
+	);
+	assert.equal(probes, 1);
+	assert.equal(deliveries, 0);
+	assert.equal(
+		response.content[0].text,
+		`Goal: Speed\nGoal note: Use /skill:tdd\n\n${skillBlock}`
 	);
 });

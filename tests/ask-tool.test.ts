@@ -735,14 +735,19 @@ test("ask_user asks the skill provider to deliver after a submitted tool result"
 	const bus = createEventBus();
 	const remote = createRemoteAskRuntime(bus);
 	const requests: string[][] = [];
-	bus.on("pi-better-skills/v1/request", (request: unknown) => {
+	bus.on("pi-better-skills:request", (request: unknown) => {
 		const r = request as {
 			operation: string;
 			names?: string[];
 			reply: (value: unknown) => void;
 		};
 		if (r.operation === "probe") {
-			r.reply({ version: 1, operation: "probe", available: true });
+			r.reply({
+				version: 1,
+				operation: "probe",
+				available: true,
+				versions: [1],
+			});
 		}
 		if (r.operation === "deliver") {
 			requests.push(r.names ?? []);

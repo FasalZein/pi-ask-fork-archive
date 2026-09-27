@@ -122,7 +122,7 @@ export function successfulResponse(
 	};
 }
 
-const SKILL_API_CHANNEL = "pi-better-skills/v1/request";
+const SKILL_API_CHANNEL = "pi-better-skills:request";
 
 function deliverSkills(
 	skills: ResolvedSkill[],
@@ -136,7 +136,12 @@ function deliverSkills(
 		version: 1,
 		operation: "probe",
 		reply: (reply: unknown) => {
-			if (isReply(reply, "probe") && reply.available === true) {
+			if (
+				isReply(reply, "probe") &&
+				reply.available === true &&
+				Array.isArray(reply.versions) &&
+				reply.versions.includes(1)
+			) {
 				available = true;
 			}
 		},

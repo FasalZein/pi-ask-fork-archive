@@ -10,7 +10,7 @@ import { getSkillCommands, type SkillCommands } from "../skill-references.ts";
 
 export const SKILL_COMPLETION_PREFIX = /(^|\s)(\/(?:skill:)?[a-zA-Z0-9._-]*)$/;
 const WHITESPACE_START = /^\s/;
-const SKILL_API_CHANNEL = "pi-better-skills/v1/request";
+const SKILL_API_CHANNEL = "pi-better-skills:request";
 type SkillEvents = Pick<ExtensionAPI["events"], "emit">;
 let skillEvents: SkillEvents | undefined;
 
@@ -62,7 +62,10 @@ function hasSkillApi(events: SkillEvents | undefined): boolean {
 				"operation" in value &&
 				value.operation === "probe" &&
 				"available" in value &&
-				value.available === true
+				value.available === true &&
+				"versions" in value &&
+				Array.isArray(value.versions) &&
+				value.versions.includes(1)
 			) {
 				available = true;
 			}
