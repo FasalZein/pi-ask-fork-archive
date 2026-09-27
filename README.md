@@ -123,6 +123,7 @@ Fixed bindings:
 | `1..9` | Options list | Select or toggle matching option |
 | `1` `2` `3` | Review tab | Trigger `Submit` / `Elaborate` / `Cancel` |
 | `@` | Editors | File-reference affordance |
+| `Ctrl+V` (`Alt+V` on Windows) | Editors | Paste a clipboard image as a temp file path, or clipboard text, as in pi's main editor; follows pi's `app.clipboard.pasteImage` keybinding |
 | Arrow keys / `Tab` | Non-empty editor | Stay in editor for cursor movement |
 
 Review-tab shortcuts can optionally require the same number key twice via `behaviour.doublePressReviewShortcuts`. `behaviour.presentSingleAsMulti` can render future single-select questions as multi-select while preserving the requested type in results; use `main.changeQuestionType` (`t` by default) to change the active question type live.
